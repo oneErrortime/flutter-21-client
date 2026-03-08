@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: voicecall
+    static_configs:
+      - targets:
+          - server:3000   # Rust server /metrics endpoint
+    metrics_path: /metrics
