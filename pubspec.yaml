@@ -1,0 +1,71 @@
+name: voice_call
+description: P2P E2E Encrypted Voice Call App
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.1.0 <4.0.0'
+  flutter: '>=3.13.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # WebRTC — RFC 8825 / 8829 / DTLS-SRTP (RFC 5764)
+  flutter_webrtc: ^0.9.48
+
+  # Networking
+  dio: ^5.3.4
+  web_socket_channel: ^2.4.0
+
+  # Secure storage (Keystore / Keychain)
+  flutter_secure_storage: ^9.0.0
+
+  # State management
+  provider: ^6.1.1
+
+  # Navigation
+  go_router: ^12.1.3
+
+  # Permissions (mic, bluetooth, etc.)
+  permission_handler: ^11.1.0
+
+  # Push notifications (incoming calls when app is background)
+  firebase_core: ^2.24.2
+  firebase_messaging: ^14.7.9
+
+  # Local notifications (foreground call UI)
+  flutter_local_notifications: ^16.2.0
+
+  # Deep links for room join
+  app_links: ^4.0.0
+
+  # UI helpers
+  cupertino_icons: ^1.0.6
+  google_fonts: ^6.1.0
+
+  # UUID generation
+  uuid: ^4.2.2
+
+  # Crypto helpers (fingerprint display for key verification)
+  crypto: ^3.0.3
+
+  # Haptic feedback
+  vibration: ^1.8.4
+
+  # Keep screen on during calls
+  wakelock_plus: ^1.1.4
+
+  # Audio routing (speaker / earpiece / bluetooth)
+  flutter_callkit_incoming: ^2.0.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/sounds/

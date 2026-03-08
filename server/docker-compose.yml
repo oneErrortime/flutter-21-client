@@ -1,0 +1,53 @@
+version: '3.9'
+
+services:
+  server:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongo:27017/voicecall
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - app-network
+    volumes:
+      - ./logs:/app/logs
+
+  mongo:
+    image: mongo:7-jammy
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # No external port exposure - only internal
+    command: mongod --auth
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - server
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mongo-data:
