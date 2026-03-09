@@ -14,7 +14,7 @@ use axum::{
     response::Response,
 };
 use futures_util::{SinkExt, StreamExt};
-use serde::{Deserialize, Serialize};
+
 use serde_json::{json, Value};
 use tokio::sync::mpsc;
 use uuid::Uuid;
@@ -47,10 +47,10 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
     });
 
     // Read loop
-    'outer: while let Some(Ok(msg)) = ws_read.next().await {
+    while let Some(Ok(msg)) = ws_read.next().await {
         let text = match msg {
             Message::Text(t) => t,
-            Message::Ping(d) => {
+            Message::Ping(_d) => {
                 // auto-handled by axum, but track alive
                 continue;
             }
@@ -291,7 +291,7 @@ async fn dispatch_message(
                 .arg(format!("room_host:{room_id_str}"))
                 .arg(86400u64)
                 .arg(from.to_string())
-                .query_async::<()>(&mut conn)
+                .query_async::<_, ()>(&mut conn)
                 .await;
         }
 
@@ -327,7 +327,7 @@ async fn dispatch_message(
                 .arg(&joiner_key)
                 .arg(86400u64)
                 .arg(from.to_string())
-                .query_async::<()>(&mut conn)
+                .query_async::<_, ()>(&mut conn)
                 .await;
 
             // Notify host
