@@ -222,6 +222,7 @@ CREATE TABLE IF NOT EXISTS users (
     avatar_url    TEXT,
     password_hash TEXT        NOT NULL,
     is_active     BOOLEAN     NOT NULL DEFAULT true,
+    discoverable  BOOLEAN     NOT NULL DEFAULT true,
     last_seen     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -242,6 +243,31 @@ CREATE TABLE IF NOT EXISTS rooms (
 
 CREATE INDEX IF NOT EXISTS idx_rooms_room_id ON rooms(room_id);
 CREATE INDEX IF NOT EXISTS idx_rooms_expires ON rooms(expires_at);
+
+CREATE TABLE IF NOT EXISTS contacts (
+    id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    requester_id UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    target_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status       TEXT        NOT NULL DEFAULT 'pending'
+                     CHECK (status IN ('pending','accepted','blocked')),
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (requester_id, target_id)
+);
+
+CREATE INDEX IF NOT EXISTS contacts_target_id_idx ON contacts (target_id);
+CREATE INDEX IF NOT EXISTS contacts_status_idx    ON contacts (status);
+
+CREATE TABLE IF NOT EXISTS invite_links (
+    id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    owner_id   UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token      TEXT        NOT NULL UNIQUE,
+    uses_left  INTEGER     NOT NULL DEFAULT 1,
+    expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '24 hours',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS invite_links_token_idx ON invite_links (token);
 
 -- Auto-expire rooms
 CREATE OR REPLACE FUNCTION expire_rooms()
