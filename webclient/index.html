@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VoiceCall — Web Test Client</title>
+<style>
+  :root {
+    --bg: #0d0d1a;
+    --surface: #1a1a2e;
+    --surface2: #16213e;
+    --accent: #0f3460;
+    --primary: #533483;
+    --green: #00d4aa;
+    --red: #ff4757;
+    --yellow: #ffa502;
+    --text: #e0e0e0;
+    --text-dim: #888;
+    --border: #2a2a4a;
+    --mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: grid;
+    grid-template-rows: 56px 1fr;
+  }
+  /* Header */
+  header {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 16px;
+  }
+  header h1 { font-size: 18px; font-weight: 600; color: var(--green); }
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--red);
+    transition: background 0.3s;
+  }
+  .dot.connected { background: var(--green); animation: pulse 2s infinite; }
+  .dot.connecting { background: var(--yellow); }
+  @keyframes pulse {
+    0%,100% { opacity:1; } 50% { opacity:0.4; }
+  }
+  /* Layout */
+  main {
+    display: grid;
+    grid-template-columns: 320px 1fr 300px;
+    height: 100%;
+    overflow: hidden;
+  }
+  /* Left panel */
+  .panel {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-title {
+    padding: 12px 16px;
+    font-size: 12px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+  }
+  /* Auth */
+  .auth-section { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  input, select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-size: 14px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus, select:focus { border-color: var(--primary); }
+  button {
+    padding: 8px 16px;
+    border: none; border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px; font-weight: 500;
+    transition: all 0.15s;
+  }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: #6040a0; }
+  .btn-green { background: #00b894; color: white; }
+  .btn-green:hover { background: #00d4aa; }
+  .btn-red { background: var(--red); color: white; }
+  .btn-red:hover { background: #ff6b81; }
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  /* User list */
+  .user-list { flex: 1; overflow-y: auto; }
+  .user-item {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .user-item:hover { background: var(--surface2); }
+  .user-item.selected { background: var(--accent); }
+  .avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; font-size: 15px; flex-shrink: 0;
+  }
+  .user-info { min-width: 0; }
+  .user-name { font-weight: 500; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-sub { font-size: 12px; color: var(--text-dim); }
+  .online-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-left: auto; flex-shrink: 0; }
+  /* Center — video */
+  .video-area {
+    display: flex; flex-direction: column; overflow: hidden;
+    background: #050510;
+  }
+  .video-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr;
+    position: relative;
+    background: #050510;
+    overflow: hidden;
+  }
+  .video-grid.has-remote { grid-template-columns: 1fr; }
+  video {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    background: #050510;
+  }
+  #remoteVideo { width: 100%; height: 100%; object-fit: cover; }
+  #localVideo {
+    position: absolute; bottom: 16px; right: 16px;
+    width: 160px; height: 100px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    cursor: move;
+    z-index: 10;
+  }
+  .video-overlay {
+    position: absolute; top: 0; left: 0; right: 0;
+    display: flex; align-items: flex-start;
+    padding: 16px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
+    pointer-events: none;
+  }
+  .call-info { display: flex; flex-direction: column; gap: 4px; }
+  .call-peer { font-size: 20px; font-weight: 600; color: white; }
+  .call-duration { font-size: 14px; color: rgba(255,255,255,0.7); }
+  .transport-badge {
+    margin-left: auto;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.6);
+    font-size: 11px; padding: 3px 8px; border-radius: 10px;
+    pointer-events: auto;
+  }
+  .call-controls {
+    background: var(--surface2);
+    border-top: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex; align-items: center; justify-content: center;
+    gap: 16px;
+  }
+  .ctrl-btn {
+    width: 52px; height: 52px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    border: none; cursor: pointer;
+    font-size: 22px;
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border);
+    transition: all 0.15s;
+  }
+  .ctrl-btn:hover { transform: scale(1.05); }
+  .ctrl-btn.active { background: rgba(255,255,255,0.2); }
+  .ctrl-btn.end { background: var(--red); border-color: var(--red); font-size: 28px; width: 64px; height: 64px; }
+  .ctrl-btn:disabled { opacity: 0.3; cursor: default; }
+  /* Right panel — logs */
+  .log-panel {
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .log-panel .panel-title { display: flex; align-items: center; gap: 8px; }
+  .log-panel .panel-title button { padding: 2px 8px; font-size: 11px; margin-left: auto; }
+  #logContainer {
+    flex: 1; overflow-y: auto;
+    padding: 10px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.5;
+  }
+  .log-entry { margin-bottom: 2px; word-break: break-word; }
+  .log-time { color: var(--text-dim); margin-right: 6px; }
+  .log-info { color: var(--text); }
+  .log-warn { color: var(--yellow); }
+  .log-error { color: var(--red); }
+  .log-success { color: var(--green); }
+  .log-ice { color: #74b9ff; }
+  /* Stats */
+  #statsPanel {
+    border-top: 1px solid var(--border);
+    padding: 10px 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    display: none;
+  }
+  #statsPanel.visible { display: block; }
+  .stat-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
+  .stat-label { color: var(--text-dim); }
+  .stat-value { color: var(--green); font-weight: 500; }
+  /* Incoming call */
+  #incomingModal {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center; justify-content: center;
+  }
+  #incomingModal.visible { display: flex; }
+  .modal-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    text-align: center;
+    max-width: 320px;
+    width: 100%;
+    animation: slideIn 0.2s ease;
+  }
+  @keyframes slideIn {
+    from { transform: scale(0.9); opacity:0; }
+    to   { transform: scale(1); opacity:1; }
+  }
+  .modal-avatar {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: var(--primary);
+    margin: 0 auto 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; font-weight: 700;
+  }
+  .modal-name { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+  .modal-sub { color: var(--text-dim); font-size: 14px; margin-bottom: 24px; }
+  .modal-btns { display: flex; gap: 16px; justify-content: center; }
+  .modal-btns button { width: 64px; height: 64px; border-radius: 50%; font-size: 28px; }
+  .ring-animation { animation: ring 0.5s infinite alternate; }
+  @keyframes ring { from { transform: rotate(-10deg); } to { transform: rotate(10deg); } }
+  /* Fingerprint section */
+  .fingerprint-section {
+    padding: 10px 12px;
+    border-top: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 11px;
+    display: none;
+  }
+  .fingerprint-section.visible { display: block; }
+  .fp-label { color: var(--text-dim); margin-bottom: 3px; }
+  .fp-value { color: var(--green); word-break: break-all; margin-bottom: 6px; }
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  /* Hidden */
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ VoiceCall — Web Test Client</h1>
+  <div class="status-pill">
+    <div class="dot" id="wsDot"></div>
+    <span id="wsStatus">Disconnected</span>
+  </div>
+  <div class="status-pill" style="margin-left:auto">
+    <div class="dot" id="callDot" style="background:var(--text-dim)"></div>
+    <span id="callStatus">Idle</span>
+  </div>
+  <div class="status-pill" id="myIdPill" style="display:none">
+    👤 <span id="myDisplayName"></span>
+  </div>
+</header>
+
+<main>
+  <!-- Left: Auth + Users -->
+  <div class="panel">
+    <div class="panel-title">Connection</div>
+    <div class="auth-section" id="authSection">
+      <input id="serverUrl" placeholder="wss://yourserver.com/ws" value="ws://localhost:3000/ws">
+      <input id="username" placeholder="Username">
+      <input id="password" type="password" placeholder="Password">
+      <div style="display:flex;gap:8px">
+        <button class="btn-primary" onclick="doRegister()" style="flex:1">Register</button>
+        <button class="btn-green" onclick="doLogin()" style="flex:1">Login</button>
+      </div>
+      <button class="btn-outline" id="connectBtn" onclick="connectWs()">Connect WS only</button>
+    </div>
+    <div class="auth-section" id="callOptions" style="border-top:1px solid var(--border)">
+      <select id="transportSelect">
+        <option value="webrtc-stun">WebRTC (STUN only)</option>
+        <option value="webrtc-turn" selected>WebRTC (TURN relay)</option>
+      </select>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="videoToggle" style="width:auto">
+        Enable video (camera)
+      </label>
+      <div style="display:flex;gap:8px">
+        <button class="btn-outline" id="refreshUsersBtn" onclick="fetchUsers()" style="flex:1">🔄 Refresh Users</button>
+        <button class="btn-outline" onclick="searchUsers()" style="flex:1">🔍 Search</button>
+      </div>
+      <input id="searchInput" placeholder="Search users..." oninput="filterUsers(this.value)">
+    </div>
+    <div class="panel-title">Online Users</div>
+    <div class="user-list" id="userList">
+      <div style="padding:20px;text-align:center;color:var(--text-dim);font-size:13px">
+        Login to see online users
+      </div>
+    </div>
+    <div style="padding:12px;border-top:1px solid var(--border)">
+      <button class="btn-primary" id="callBtn" onclick="startCall()" disabled style="width:100%">
+        📞 Call Selected User
+      </button>
+    </div>
+  </div>
+
+  <!-- Center: Video -->
+  <div class="video-area">
+    <div class="video-grid" id="videoGrid">
+      <video id="remoteVideo" autoplay playsinline></video>
+      <video id="localVideo" autoplay playsinline muted></video>
+      <div class="video-overlay">
+        <div class="call-info">
+          <div class="call-peer" id="callPeerName">Select a user to call</div>
+          <div class="call-duration" id="callDurationEl" style="display:none"></div>
+        </div>
+        <div class="transport-badge" id="transportBadge" style="display:none"></div>
+      </div>
+    </div>
+    <div class="call-controls">
+      <button class="ctrl-btn" id="muteBtn" onclick="toggleMute()" disabled title="Mute">🎤</button>
+      <button class="ctrl-btn" id="videoBtn" onclick="toggleVideo()" disabled title="Camera">📹</button>
+      <button class="ctrl-btn end" id="hangupBtn" onclick="hangUp()" disabled title="End call">📵</button>
+      <button class="ctrl-btn" id="speakerBtn" onclick="toggleSpeaker()" title="Speaker">🔊</button>
+      <button class="ctrl-btn" onclick="showStats()" title="Stats">📊</button>
+    </div>
+  </div>
+
+  <!-- Right: Logs -->
+  <div class="log-panel">
+    <div class="panel-title">
+      Event Log
+      <button class="btn-outline" onclick="clearLog()" style="margin-left:auto;padding:2px 8px;font-size:11px">Clear</button>
+    </div>
+    <div id="logContainer"></div>
+    <div class="fingerprint-section" id="fingerprintSection">
+      <div class="fp-label">🔒 DTLS Fingerprint (RFC 5764)</div>
+      <div class="fp-label">Local:</div>
+      <div class="fp-value" id="fpLocal">—</div>
+      <div class="fp-label">Remote:</div>
+      <div class="fp-value" id="fpRemote">—</div>
+    </div>
+    <div id="statsPanel">
+      <div class="stat-row"><span class="stat-label">ICE State</span><span class="stat-value" id="sIce">—</span></div>
+      <div class="stat-row"><span class="stat-label">Audio Jitter</span><span class="stat-value" id="sJitter">—</span></div>
+      <div class="stat-row"><span class="stat-label">Audio RTT</span><span class="stat-value" id="sRtt">—</span></div>
+      <div class="stat-row"><span class="stat-label">Packets Lost</span><span class="stat-value" id="sLost">—</span></div>
+      <div class="stat-row"><span class="stat-label">Video</span><span class="stat-value" id="sVideo">—</span></div>
+      <div class="stat-row"><span class="stat-label">Bitrate</span><span class="stat-value" id="sBitrate">—</span></div>
+    </div>
+  </div>
+</main>
+
+<!-- Incoming call modal -->
+<div id="incomingModal">
+  <div class="modal-box">
+    <div class="modal-avatar ring-animation" id="incomingAvatar">👤</div>
+    <div class="modal-name" id="incomingName">Unknown</div>
+    <div class="modal-sub">Incoming call…</div>
+    <div class="modal-btns">
+      <button class="btn-red" style="font-size:28px" onclick="declineCall()">📵</button>
+      <button class="btn-green" style="font-size:28px" onclick="acceptCall()">📞</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════════════
+// VoiceCall Web Test Client
+//
+// Standards implemented:
+//   RFC 8825  — Overview: WebRTC protocols
+//   RFC 8829  — JSEP (offer/answer via RTCPeerConnection)
+//   RFC 8445  — ICE (trickle ICE via onicecandidate)
+//   RFC 8838  — Trickle ICE (incremental candidates)
+//   RFC 5764  — DTLS-SRTP (fingerprint extraction)
+//   RFC 7874  — WebRTC Audio Requirements (Opus + G.711)
+//   RFC 7742  — WebRTC Video Requirements (VP9/VP8)
+//   RFC 4585  — RTCP-FB (nack, pli)
+//   RFC 8836  — Congestion Control (transport-cc via RTCPeerConnection)
+//   RFC 8843  — BUNDLE (max-bundle policy)
+//   RFC 5761  — rtcp-mux
+//   RFC 3264  — SDP Offer/Answer Model
+// ═══════════════════════════════════════════════════════════════
+
+// ─── State ────────────────────────────────────────────────────
+let ws = null;
+let pc = null;
+let localStream = null;
+let remoteStream = null;
+let myUserId = null;
+let myToken = null;
+let selectedUser = null;
+let allUsers = [];
+let pendingOffer = null;
+let pendingCallerId = null;
+let callStartTime = null;
+let durationInterval = null;
+let statsInterval = null;
+let isMuted = false;
+let isVideoEnabled = true;
+// RFC 8838: buffer ICE candidates before remote SDP is set
+let iceCandidateBuffer = [];
+let remoteDescriptionSet = false;
+let localFingerprint = null;
+let remoteFingerprint = null;
+
+// ─── Logging ──────────────────────────────────────────────────
+function log(msg, cls = 'log-info') {
+  const c = document.getElementById('logContainer');
+  const now = new Date().toTimeString().slice(0,8);
+  c.innerHTML += `<div class="log-entry"><span class="log-time">${now}</span><span class="${cls}">${esc(msg)}</span></div>`;
+  c.scrollTop = c.scrollHeight;
+}
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function clearLog() { document.getElementById('logContainer').innerHTML = ''; }
+
+// ─── REST helpers ─────────────────────────────────────────────
+function apiBase() {
+  const wsUrl = document.getElementById('serverUrl').value.trim();
+  return wsUrl.replace(/^ws/, 'http').replace(/\/ws$/, '');
+}
+
+async function doRegister() {
+  const body = { username: v('username'), password: v('password'), displayName: v('username') };
+  try {
+    const r = await fetch(`${apiBase()}/api/auth/register`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if (r.ok) { log(`Registered: ${d.user?.displayName}`, 'log-success'); }
+    else       { log(`Register failed: ${d.error || JSON.stringify(d)}`, 'log-error'); }
+  } catch(e) { log(`Register error: ${e}`, 'log-error'); }
+}
+
+async function doLogin() {
+  const body = { username: v('username'), password: v('password') };
+  try {
+    const r = await fetch(`${apiBase()}/api/auth/login`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if (r.ok) {
+      myToken = d.accessToken;
+      myUserId = d.user?.userId;
+      log(`Logged in as ${d.user?.displayName}`, 'log-success');
+      show('myIdPill');
+      document.getElementById('myDisplayName').textContent = d.user?.displayName || 'Me';
+      connectWs();
+      fetchUsers();
+    } else {
+      log(`Login failed: ${d.error || JSON.stringify(d)}`, 'log-error');
+    }
+  } catch(e) { log(`Login error: ${e}`, 'log-error'); }
+}
+
+async function fetchUsers() {
+  if (!myToken) { log('Login first', 'log-warn'); return; }
+  try {
+    const r = await fetch(`${apiBase()}/api/users/search?q=`, {
+      headers: { 'Authorization': `Bearer ${myToken}` }
+    });
+    const d = await r.json();
+    allUsers = Array.isArray(d.users) ? d.users : (Array.isArray(d) ? d : []);
+    renderUsers(allUsers);
+    log(`Fetched ${allUsers.length} users`, 'log-success');
+  } catch(e) { log(`Users error: ${e}`, 'log-error'); }
+}
+
+async function searchUsers() {
+  const q = document.getElementById('searchInput').value;
+  if (!myToken) return;
+  try {
+    const r = await fetch(`${apiBase()}/api/users/search?q=${encodeURIComponent(q)}`, {
+      headers: { 'Authorization': `Bearer ${myToken}` }
+    });
+    const d = await r.json();
+    allUsers = Array.isArray(d.users) ? d.users : (Array.isArray(d) ? d : []);
+    renderUsers(allUsers);
+  } catch(e) { log(`Search error: ${e}`, 'log-error'); }
+}
+
+function filterUsers(q) {
+  const filtered = allUsers.filter(u =>
+    (u.displayName||'').toLowerCase().includes(q.toLowerCase()) ||
+    (u.username||'').toLowerCase().includes(q.toLowerCase())
+  );
+  renderUsers(filtered);
+}
+
+function renderUsers(users) {
+  const ul = document.getElementById('userList');
+  if (!users.length) {
+    ul.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-dim);font-size:13px">No users found</div>';
+    return;
+  }
+  ul.innerHTML = users.map(u => {
+    const isMe = u.userId === myUserId;
+    const initials = (u.displayName||u.username||'?').slice(0,2).toUpperCase();
+    return `<div class="user-item ${isMe?'hidden':''}" onclick="selectUser(${JSON.stringify(JSON.stringify(u))})">
+      <div class="avatar">${esc(initials)}</div>
+      <div class="user-info">
+        <div class="user-name">${esc(u.displayName||u.username)}</div>
+        <div class="user-sub">@${esc(u.username)}</div>
+      </div>
+      <div class="online-dot"></div>
+    </div>`;
+  }).join('');
+}
+
+function selectUser(jsonStr) {
+  selectedUser = JSON.parse(jsonStr);
+  document.querySelectorAll('.user-item').forEach(el => el.classList.remove('selected'));
+  document.getElementById('callPeerName').textContent = selectedUser.displayName || selectedUser.username;
+  document.getElementById('callBtn').disabled = false;
+  log(`Selected: ${selectedUser.displayName} (${selectedUser.userId})`, 'log-info');
+}
+
+// ─── WebSocket ─────────────────────────────────────────────────
+function connectWs() {
+  const url = document.getElementById('serverUrl').value.trim();
+  if (ws && ws.readyState === WebSocket.OPEN) { log('WS already connected', 'log-warn'); return; }
+  log(`Connecting to ${url}…`);
+  setWsState('connecting');
+  ws = new WebSocket(url);
+  ws.onopen = () => {
+    log('WebSocket connected', 'log-success');
+    setWsState('connected');
+    if (myToken) ws.send(JSON.stringify({ type: 'auth', token: myToken, capabilities: ['webrtc'] }));
+  };
+  ws.onclose = (e) => {
+    log(`WebSocket closed: ${e.code} ${e.reason||''}`, 'log-warn');
+    setWsState('disconnected');
+  };
+  ws.onerror = (e) => log(`WebSocket error`, 'log-error');
+  ws.onmessage = (e) => onWsMessage(JSON.parse(e.data));
+}
+
+function sendWs(msg) {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+  else log('WS not connected', 'log-error');
+}
+
+function setWsState(s) {
+  const dot = document.getElementById('wsDot');
+  const lbl = document.getElementById('wsStatus');
+  dot.className = 'dot ' + (s === 'connected' ? 'connected' : s === 'connecting' ? 'connecting' : '');
+  lbl.textContent = { connected:'Authenticated', connecting:'Connecting…', disconnected:'Disconnected' }[s] || s;
+}
+
+// ─── Signaling message dispatch ────────────────────────────────
+function onWsMessage(msg) {
+  const t = msg.type;
+  log(`◀ ${t}${msg.from?' from:'+msg.from.slice(0,8):''}`, 'log-ice');
+
+  switch(t) {
+    case 'auth-success':
+      log(`Auth OK — userId: ${msg.userId}`, 'log-success');
+      if (!myUserId) myUserId = msg.userId;
+      setWsState('connected');
+      break;
+    case 'auth-error':
+      log(`Auth error: ${msg.message}`, 'log-error');
+      break;
+    case 'call-incoming':
+      onCallIncoming(msg);
+      break;
+    case 'call-answered':
+      onCallAnswered(msg);
+      break;
+    case 'call-declined':
+      log(`Call declined: ${msg.reason||'—'}`, 'log-warn');
+      endCall();
+      break;
+    case 'ice':
+      onRemoteIce(msg);
+      break;
+    case 'hangup':
+      log('Peer hung up', 'log-warn');
+      endCall();
+      break;
+    case 'user-offline':
+    case 'user-busy':
+      log(`Peer ${t}`, 'log-warn');
+      endCall();
+      break;
+    case 'heartbeat-ack':
+      break;
+    case 'session-replaced':
+      log('Session replaced by new connection', 'log-warn');
+      break;
+    default:
+      log(`Unhandled: ${JSON.stringify(msg).slice(0,120)}`, 'log-warn');
+  }
+}
+
+// ─── WebRTC ICE server config ──────────────────────────────────
+// RFC 8445: STUN/TURN config
+// RFC 8489: STUN (obsoletes RFC 5389)
+// RFC 8656: TURN (obsoletes RFC 5766)
+function getRtcConfig() {
+  const useTurn = document.getElementById('transportSelect').value === 'webrtc-turn';
+  const iceServers = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun.cloudflare.com:3478' },
+  ];
+  // Add TURN if user has configured one (stored in sessionStorage)
+  const turn = sessionStorage.getItem('turnConfig');
+  if (turn && useTurn) {
+    try { iceServers.push(...JSON.parse(turn)); } catch(e) {}
+  }
+  return {
+    iceServers,
+    // RFC 8843: BUNDLE — all m= sections share one 5-tuple
+    bundlePolicy: 'max-bundle',
+    // RFC 5761: mux RTP and RTCP on same port
+    rtcpMuxPolicy: 'require',
+    // RFC 8829: unified-plan (not plan-b)
+    sdpSemantics: 'unified-plan',
+    iceTransportPolicy: useTurn ? 'relay' : 'all',
+  };
+}
+
+// ─── Create PeerConnection ─────────────────────────────────────
+async function createPc() {
+  pc = new RTCPeerConnection(getRtcConfig());
+  iceCandidateBuffer = [];
+  remoteDescriptionSet = false;
+  localFingerprint = null;
+  remoteFingerprint = null;
+
+  // RFC 8838: Trickle ICE — send candidates as they arrive
+  pc.onicecandidate = ({ candidate }) => {
+    if (!candidate) return; // null = gathering complete
+    const to = pendingCallerId || selectedUser?.userId;
+    if (to) {
+      sendWs({ type: 'ice', to, candidate: candidate.toJSON() });
+      log(`▶ ICE candidate: ${candidate.candidate.split(' ')[7] || 'host'} → ${to.slice(0,8)}`, 'log-ice');
+    }
+  };
+  pc.onicegatheringstatechange = () =>
+    log(`ICE gathering: ${pc.iceGatheringState}`, 'log-ice');
+  pc.oniceconnectionstatechange = () => {
+    log(`ICE connection: ${pc.iceConnectionState}`, 'log-ice');
+    document.getElementById('sIce').textContent = pc.iceConnectionState;
+    if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+      setCallState('connected');
+      startDurationTimer();
+      startStatsPoller();
+    }
+    if (pc.iceConnectionState === 'failed') {
+      log('ICE failed — triggering restart (RFC 8445 §9.1.1)', 'log-warn');
+      pc.restartIce(); // RFC 8445 §9.1.1
+    }
+    if (pc.iceConnectionState === 'disconnected') {
+      log('ICE disconnected — will retry', 'log-warn');
+    }
+  };
+  pc.onconnectionstatechange = () => {
+    log(`PC: ${pc.connectionState}`, 'log-ice');
+    if (pc.connectionState === 'failed' || pc.connectionState === 'closed') endCall();
+  };
+
+  // RFC 8829: unified-plan ontrack (NOT onaddstream which is plan-b / legacy)
+  pc.ontrack = ({ track, streams }) => {
+    log(`Remote track: kind=${track.kind}`, 'log-success');
+    const rv = document.getElementById('remoteVideo');
+    if (streams && streams[0]) {
+      rv.srcObject = streams[0];
+      remoteStream = streams[0];
+    } else {
+      if (!remoteStream) remoteStream = new MediaStream();
+      remoteStream.addTrack(track);
+      rv.srcObject = remoteStream;
+    }
+  };
+
+  return pc;
+}
+
+// ─── Outgoing call ─────────────────────────────────────────────
+async function startCall() {
+  if (!selectedUser) { log('Select a user first', 'log-warn'); return; }
+  if (!ws || ws.readyState !== WebSocket.OPEN) { log('WS not connected', 'log-error'); return; }
+
+  log(`Calling ${selectedUser.displayName}…`);
+  const withVideo = document.getElementById('videoToggle').checked;
+  await getLocalMedia(withVideo);
+  await createPc();
+  addLocalTracks();
+
+  // RFC 8829: create offer (JSEP)
+  const offer = await pc.createOffer({
+    offerToReceiveAudio: true,
+    offerToReceiveVideo: withVideo,
+  });
+
+  // RFC 7874: Inject proper Opus fmtp before setLocalDescription
+  const sdp = injectOpusFmtp(offer.sdp);
+  await pc.setLocalDescription({ type: offer.type, sdp });
+
+  localFingerprint = extractFingerprint(sdp);
+  updateFingerprintDisplay();
+
+  setCallState('calling');
+  document.getElementById('callPeerName').textContent = selectedUser.displayName;
+  document.getElementById('transportBadge').style.display = '';
+  document.getElementById('transportBadge').textContent =
+    document.getElementById('transportSelect').value.replace('webrtc-', 'WebRTC/').toUpperCase();
+
+  sendWs({ type: 'call', to: selectedUser.userId, offer: { type: offer.type, sdp }, withVideo });
+  log(`▶ Offer sent to ${selectedUser.userId.slice(0,8)}`, 'log-success');
+  enableCallControls(true);
+}
+
+// ─── Incoming call ─────────────────────────────────────────────
+function onCallIncoming(msg) {
+  pendingCallerId = msg.from;
+  pendingOffer = msg.offer;
+  document.getElementById('incomingName').textContent = msg.callerName || msg.from;
+  document.getElementById('incomingAvatar').textContent =
+    (msg.callerName||'?').slice(0,2).toUpperCase();
+  document.getElementById('incomingModal').classList.add('visible');
+  log(`Incoming call from ${msg.callerName} (${msg.from.slice(0,8)})`, 'log-success');
+}
+
+async function acceptCall() {
+  document.getElementById('incomingModal').classList.remove('visible');
+  if (!pendingOffer || !pendingCallerId) return;
+  const withVideo = pendingOffer.sdp?.includes('m=video') || false;
+  await getLocalMedia(withVideo);
+  await createPc();
+  addLocalTracks();
+
+  // RFC 3264 §6: set remote description first, then create answer
+  remoteDescriptionSet = false;
+  remoteFingerprint = extractFingerprint(pendingOffer.sdp);
+  await pc.setRemoteDescription(pendingOffer);
+  remoteDescriptionSet = true;
+  updateFingerprintDisplay();
+
+  // RFC 8838: flush buffered ICE candidates
+  for (const c of iceCandidateBuffer) {
+    await pc.addIceCandidate(new RTCIceCandidate(c));
+  }
+  iceCandidateBuffer = [];
+  log(`Flushed ${iceCandidateBuffer.length} buffered ICE candidates`, 'log-ice');
+
+  const answer = await pc.createAnswer({
+    offerToReceiveAudio: true,
+    offerToReceiveVideo: withVideo,
+  });
+  const sdp = injectOpusFmtp(answer.sdp);
+  await pc.setLocalDescription({ type: answer.type, sdp });
+
+  localFingerprint = extractFingerprint(sdp);
+  updateFingerprintDisplay();
+
+  sendWs({ type: 'answer', to: pendingCallerId, answer: { type: answer.type, sdp } });
+  log('▶ Answer sent', 'log-success');
+  setCallState('connecting');
+  enableCallControls(true);
+  pendingOffer = null;
+}
+
+function declineCall() {
+  document.getElementById('incomingModal').classList.remove('visible');
+  if (pendingCallerId) sendWs({ type: 'decline', to: pendingCallerId, reason: 'declined' });
+  pendingCallerId = null;
+  pendingOffer = null;
+  log('Call declined', 'log-warn');
+}
+
+// ─── Answer received ───────────────────────────────────────────
+async function onCallAnswered(msg) {
+  if (!pc) return;
+  remoteFingerprint = extractFingerprint(msg.answer.sdp);
+  remoteDescriptionSet = false;
+  await pc.setRemoteDescription(msg.answer);
+  remoteDescriptionSet = true;
+  updateFingerprintDisplay();
+
+  // RFC 8838: flush buffered ICE candidates
+  for (const c of iceCandidateBuffer) {
+    try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch(e) {}
+  }
+  iceCandidateBuffer = [];
+  log('Answer applied', 'log-success');
+  setCallState('connecting');
+}
+
+// ─── RFC 8838: Trickle ICE — buffer before remote SDP is set ──
+async function onRemoteIce(msg) {
+  const c = msg.candidate;
+  if (!c || !c.candidate) return;
+  if (!remoteDescriptionSet) {
+    // RFC 8838 §4.1: buffer until remote description is available
+    iceCandidateBuffer.push(c);
+    log(`Buffered ICE candidate (${iceCandidateBuffer.length})`, 'log-ice');
+    return;
+  }
+  try {
+    await pc.addIceCandidate(new RTCIceCandidate(c));
+    log(`✓ ICE: ${c.candidate.split(' ')[7] || 'host'}`, 'log-ice');
+  } catch(e) { log(`ICE error: ${e}`, 'log-error'); }
+}
+
+// ─── Hangup ────────────────────────────────────────────────────
+function hangUp() {
+  const to = pendingCallerId || selectedUser?.userId;
+  if (to) sendWs({ type: 'hangup', to });
+  endCall();
+}
+
+function endCall() {
+  clearInterval(durationInterval);
+  clearInterval(statsInterval);
+  durationInterval = null;
+  statsInterval = null;
+  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+  document.getElementById('localVideo').srcObject = null;
+  document.getElementById('remoteVideo').srcObject = null;
+  if (pc) { pc.close(); pc = null; }
+  pendingCallerId = null;
+  pendingOffer = null;
+  remoteDescriptionSet = false;
+  iceCandidateBuffer = [];
+  setCallState('idle');
+  enableCallControls(false);
+  document.getElementById('callDurationEl').style.display = 'none';
+  document.getElementById('transportBadge').style.display = 'none';
+  document.getElementById('statsPanel').classList.remove('visible');
+  document.getElementById('fingerprintSection').classList.remove('visible');
+  document.getElementById('callPeerName').textContent = selectedUser?.displayName || 'Select a user to call';
+  log('Call ended', 'log-warn');
+}
+
+// ─── Media ─────────────────────────────────────────────────────
+async function getLocalMedia(withVideo) {
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        // RFC 7874: required processing
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        sampleRate: 48000,  // RFC 6716: Opus native rate
+        channelCount: 1,    // RFC 7874: mono default
+      },
+      video: withVideo ? { width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} } : false,
+    });
+    document.getElementById('localVideo').srcObject = localStream;
+    log(`Local media: audio${withVideo?' + video':''}`, 'log-success');
+  } catch(e) {
+    log(`Media error: ${e}`, 'log-error');
+    throw e;
+  }
+}
+
+function addLocalTracks() {
+  if (!localStream || !pc) return;
+  for (const track of localStream.getTracks()) {
+    pc.addTrack(track, localStream);
+  }
+}
+
+function toggleMute() {
+  if (!localStream) return;
+  isMuted = !isMuted;
+  localStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
+  document.getElementById('muteBtn').textContent = isMuted ? '🔇' : '🎤';
+  document.getElementById('muteBtn').classList.toggle('active', isMuted);
+  log(isMuted ? 'Muted' : 'Unmuted');
+}
+
+function toggleVideo() {
+  if (!localStream) return;
+  isVideoEnabled = !isVideoEnabled;
+  localStream.getVideoTracks().forEach(t => t.enabled = isVideoEnabled);
+  document.getElementById('videoBtn').textContent = isVideoEnabled ? '📹' : '📷';
+  document.getElementById('videoBtn').classList.toggle('active', !isVideoEnabled);
+}
+
+function toggleSpeaker() { log('Speaker toggle (desktop browsers handle output automatically)'); }
+
+// ─── RFC 7587 / RFC 7874: Opus fmtp injection ─────────────────
+function injectOpusFmtp(sdp) {
+  const m = /a=rtpmap:(\d+) opus\/48000\/2/i.exec(sdp);
+  if (!m) return sdp;
+  const pt = m[1];
+  // useinbandfec=1  RFC 7874 §3: MUST
+  // usedtx=1        RFC 7874 §3: SHOULD
+  // minptime=10     RFC 7874: low latency
+  // maxaveragebitrate=96000
+  const newFmtp = `a=fmtp:${pt} useinbandfec=1;usedtx=1;minptime=10;maxaveragebitrate=96000`;
+  const oldFmtp = new RegExp(`a=fmtp:${pt} [^\r\n]+`);
+  return oldFmtp.test(sdp) ? sdp.replace(oldFmtp, newFmtp)
+                           : sdp.replace(/(a=rtpmap:\d+ opus\/48000\/2[^\r\n]*)/, `$1\r\n${newFmtp}`);
+}
+
+// ─── RFC 5764: DTLS fingerprint ────────────────────────────────
+function extractFingerprint(sdp) {
+  if (!sdp) return null;
+  const m = /a=fingerprint:([\w-]+ [\dA-Fa-f:]+)/.exec(sdp);
+  return m ? m[1] : null;
+}
+
+function updateFingerprintDisplay() {
+  if (!localFingerprint && !remoteFingerprint) return;
+  document.getElementById('fingerprintSection').classList.add('visible');
+  document.getElementById('fpLocal').textContent = localFingerprint || '—';
+  document.getElementById('fpRemote').textContent = remoteFingerprint || 'Waiting…';
+}
+
+// ─── Stats poller (RFC 8829 getStats) ─────────────────────────
+function showStats() {
+  document.getElementById('statsPanel').classList.toggle('visible');
+}
+
+function startStatsPoller() {
+  document.getElementById('statsPanel').classList.add('visible');
+  statsInterval = setInterval(async () => {
+    if (!pc) return;
+    const report = await pc.getStats();
+    let jitter, rtt, lost, width, height, fps, bitrate;
+    report.forEach(stat => {
+      if (stat.type === 'inbound-rtp' && stat.kind === 'audio') {
+        jitter = stat.jitter;
+        lost = stat.packetsLost;
+      }
+      if (stat.type === 'inbound-rtp' && stat.kind === 'video') {
+        width = stat.frameWidth; height = stat.frameHeight; fps = stat.framesPerSecond;
+      }
+      if (stat.type === 'remote-inbound-rtp' && stat.kind === 'audio') {
+        rtt = stat.roundTripTime;
+      }
+      if (stat.type === 'candidate-pair' && stat.nominated) {
+        bitrate = stat.availableOutgoingBitrate;
+      }
+    });
+    const s = x => x !== undefined ? String(x) : '—';
+    document.getElementById('sJitter').textContent = jitter !== undefined ? `${(jitter*1000).toFixed(1)}ms` : '—';
+    document.getElementById('sRtt').textContent = rtt !== undefined ? `${(rtt*1000).toFixed(0)}ms` : '—';
+    document.getElementById('sLost').textContent = s(lost);
+    document.getElementById('sVideo').textContent = width ? `${width}×${height}@${fps||'?'}fps` : 'none';
+    document.getElementById('sBitrate').textContent = bitrate ? `${(bitrate/1000).toFixed(0)}kbps` : '—';
+  }, 2000);
+}
+
+// ─── Duration timer ────────────────────────────────────────────
+function startDurationTimer() {
+  callStartTime = Date.now();
+  const el = document.getElementById('callDurationEl');
+  el.style.display = '';
+  durationInterval = setInterval(() => {
+    const s = Math.floor((Date.now() - callStartTime) / 1000);
+    const mm = String(Math.floor(s/60)).padStart(2,'0');
+    const ss = String(s % 60).padStart(2,'0');
+    el.textContent = `${mm}:${ss}`;
+  }, 1000);
+}
+
+// ─── UI state helpers ──────────────────────────────────────────
+function setCallState(state) {
+  const dot = document.getElementById('callDot');
+  const lbl = document.getElementById('callStatus');
+  const colors = { idle:'var(--text-dim)', calling:'var(--yellow)', connecting:'var(--yellow)', connected:'var(--green)' };
+  dot.style.background = colors[state] || 'var(--text-dim)';
+  lbl.textContent = { idle:'Idle', calling:'Calling…', connecting:'Connecting…', connected:'Connected' }[state] || state;
+}
+
+function enableCallControls(enabled) {
+  ['muteBtn','videoBtn','hangupBtn'].forEach(id =>
+    document.getElementById(id).disabled = !enabled
+  );
+}
+
+function show(id) { document.getElementById(id).style.display = ''; }
+function hide(id) { document.getElementById(id).style.display = 'none'; }
+function v(id) { return document.getElementById(id).value.trim(); }
+
+// ─── Heartbeat (RFC 8829: keep alive) ─────────────────────────
+setInterval(() => {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'heartbeat' }));
+}, 25000);
+</script>
+</body>
+</html>
