@@ -1,0 +1,11 @@
+{
+  "name": "voicecall-docs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VoiceCall documentation site",
+  "scripts": {
+    "prebuild": "node prebuild/generate-docs.js",
+    "build": "node prebuild/generate-docs.js",
+    "dev": "node prebuild/generate-docs.js && npx serve . -p 4000"
+  }
+}
