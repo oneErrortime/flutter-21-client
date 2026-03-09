@@ -12,7 +12,9 @@ dependencies:
     sdk: flutter
 
   # WebRTC — RFC 8825 / 8829 / DTLS-SRTP (RFC 5764)
-  flutter_webrtc: ^0.9.48
+  # 0.12.x fixes the JSArray<MediaStreamTrack> not-Iterable compile error
+  # that broke the Dart 3 web build (dart2js) in 0.9.48+hotfix.1
+  flutter_webrtc: ^0.12.0
 
   # Networking
   dio: ^5.3.4
