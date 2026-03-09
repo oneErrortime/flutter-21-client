@@ -34,10 +34,9 @@
 ///   c) Janus Gateway (C) — WebRTC gateway
 ///   d) webrtc-rs (Rust, alpha) — embed directly in this binary
 
-use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{collections::HashMap, sync::Arc, time::Instant};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 use uuid::Uuid;
 
 use crate::{errors::AppError, signaling::hub::SignalingHub};
@@ -117,13 +116,15 @@ impl SfuRegistry {
 
     /// Remove empty rooms to free memory (call periodically).
     pub async fn reap_empty(&self) {
-        let mut rooms = self.rooms.write().await;
-        rooms.retain(|_, room| !room.is_empty());
+        let mut rooms: tokio::sync::RwLockWriteGuard<'_, HashMap<String, SfuRoom>> =
+            self.rooms.write().await;
+        rooms.retain(|_, room: &mut SfuRoom| !room.is_empty());
     }
 
     /// Get participant count for a room.
     pub async fn participant_count(&self, room_id: &str) -> usize {
-        let rooms = self.rooms.read().await;
+        let rooms: tokio::sync::RwLockReadGuard<'_, HashMap<String, SfuRoom>> =
+            self.rooms.read().await;
         rooms
             .get(room_id)
             .map(|r| r.participants.len())
