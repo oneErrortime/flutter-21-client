@@ -1,44 +1,43 @@
-/// routes/contacts.rs
-///
-/// Contacts / Friends API
-///
-/// Privacy model:
-///   - Search by @handle returns ONLY users with `discoverable = true`
-///     OR users already in your contacts (so you can see their handle).
-///   - Contact requests require the target to accept before either
-///     party can call the other.
-///   - Blocks are one-sided and completely opaque to the blocked user.
-///
-/// DB schema required (add to db::MIGRATIONS):
-/// ─────────────────────────────────────────────
-/// CREATE TABLE IF NOT EXISTS contacts (
-///     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-///     requester_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-///     target_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-///     status          TEXT NOT NULL DEFAULT 'pending'
-///                         CHECK (status IN ('pending','accepted','blocked')),
-///     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-///     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-///     UNIQUE (requester_id, target_id)
-/// );
-/// CREATE INDEX IF NOT EXISTS contacts_target_id_idx ON contacts (target_id);
-/// CREATE INDEX IF NOT EXISTS contacts_status_idx ON contacts (status);
-///
-/// CREATE TABLE IF NOT EXISTS invite_links (
-///     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-///     owner_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-///     token       TEXT NOT NULL UNIQUE,
-///     uses_left   INTEGER NOT NULL DEFAULT 1,   -- 0 = unlimited
-///     expires_at  TIMESTAMPTZ NOT NULL DEFAULT now() + INTERVAL '24 hours',
-///     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-/// );
-/// CREATE INDEX IF NOT EXISTS invite_links_token_idx ON invite_links (token);
+//! routes/contacts.rs
+//!
+//! Contacts / Friends API
+//!
+//! Privacy model:
+//!   - Search by @handle returns ONLY users with `discoverable = true`
+//!     OR users already in your contacts (so you can see their handle).
+//!   - Contact requests require the target to accept before either
+//!     party can call the other.
+//!   - Blocks are one-sided and completely opaque to the blocked user.
+//!
+//! DB schema required (add to db::MIGRATIONS):
+//! ─────────────────────────────────────────────
+//! CREATE TABLE IF NOT EXISTS contacts (
+//!     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+//!     requester_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+//!     target_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+//!     status          TEXT NOT NULL DEFAULT 'pending'
+//!                         CHECK (status IN ('pending','accepted','blocked')),
+//!     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+//!     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+//!     UNIQUE (requester_id, target_id)
+//! );
+//! CREATE INDEX IF NOT EXISTS contacts_target_id_idx ON contacts (target_id);
+//! CREATE INDEX IF NOT EXISTS contacts_status_idx ON contacts (status);
+//!
+//! CREATE TABLE IF NOT EXISTS invite_links (
+//!     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+//!     owner_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+//!     token       TEXT NOT NULL UNIQUE,
+//!     uses_left   INTEGER NOT NULL DEFAULT 1,   -- 0 = unlimited
+//!     expires_at  TIMESTAMPTZ NOT NULL DEFAULT now() + INTERVAL '24 hours',
+//!     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+//! );
+//! CREATE INDEX IF NOT EXISTS invite_links_token_idx ON invite_links (token);
 
 use axum::{
     extract::{Path, State},
     Extension, Json,
 };
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

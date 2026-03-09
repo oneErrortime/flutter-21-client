@@ -1,11 +1,11 @@
-/// Cryptography module
-///
-/// 1. Password hashing: Argon2id (OWASP PHC winner, memory-hard)
-/// 2. Signaling message encryption: AES-256-GCM (AEAD)
-///    - SDP offer/answer and ICE candidates are encrypted so even if
-///      the signaling channel is somehow compromised, payloads are unreadable
-/// 3. HKDF (RFC 5869) for deriving per-session keys
-/// 4. Secure random token generation
+//! Cryptography module
+//!
+//! 1. Password hashing: Argon2id (OWASP PHC winner, memory-hard)
+//! 2. Signaling message encryption: AES-256-GCM (AEAD)
+//!    - SDP offer/answer and ICE candidates are encrypted so even if
+//!      the signaling channel is somehow compromised, payloads are unreadable
+//! 3. HKDF (RFC 5869) for deriving per-session keys
+//! 4. Secure random token generation
 
 use aes_gcm::{
     aead::{Aead, AeadCore, KeyInit, OsRng},

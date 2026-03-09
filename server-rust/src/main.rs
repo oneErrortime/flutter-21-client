@@ -1,18 +1,18 @@
-/// VoiceCall Signaling Server — Rust / Axum / Tokio
-///
-/// Features:
-///   - Multi-threaded Tokio runtime (1 thread per CPU core)
-///   - Axum web framework with native WebSocket support
-///   - PostgreSQL via sqlx (async, connection pool)
-///   - Redis pub/sub for horizontal scaling
-///   - AES-256-GCM encrypted signaling payloads
-///   - Argon2id password hashing
-///   - JWT with refresh token rotation + reuse detection
-///   - DashMap (lock-free concurrent HashMap for WS connections)
-///   - Tower rate limiting per IP (token bucket)
-///   - Prometheus metrics at /metrics
-///   - Graceful shutdown (SIGTERM/SIGINT)
-///   - Structured JSON logging (tracing + tracing-subscriber)
+//! VoiceCall Signaling Server — Rust / Axum / Tokio
+//!
+//! Features:
+//!   - Multi-threaded Tokio runtime (1 thread per CPU core)
+//!   - Axum web framework with native WebSocket support
+//!   - PostgreSQL via sqlx (async, connection pool)
+//!   - Redis pub/sub for horizontal scaling
+//!   - AES-256-GCM encrypted signaling payloads
+//!   - Argon2id password hashing
+//!   - JWT with refresh token rotation + reuse detection
+//!   - DashMap (lock-free concurrent HashMap for WS connections)
+//!   - Tower rate limiting per IP (token bucket)
+//!   - Prometheus metrics at /metrics
+//!   - Graceful shutdown (SIGTERM/SIGINT)
+//!   - Structured JSON logging (tracing + tracing-subscriber)
 
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 

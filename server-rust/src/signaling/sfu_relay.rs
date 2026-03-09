@@ -1,38 +1,38 @@
-/// signaling/sfu_relay.rs
-///
-/// Server-side WebRTC SFU (Selective Forwarding Unit) relay.
-///
-/// Architecture:
-///   - Each SFU room has exactly one "media relay task" running on the server.
-///   - The server terminates DTLS/ICE with each participant and re-forwards
-///     RTP packets between them (no transcoding — pure relay).
-///   - This avoids client NAT traversal issues entirely: clients connect to
-///     the server, the server bridges them.
-///
-/// When to use SFU relay instead of pure P2P:
-///   - Symmetric NAT / corporate firewalls (TURN is expensive; SFU is cheaper)
-///   - Server-side recording (server has plaintext audio/video)
-///   - Group calls > 2 participants (each sender uploads once; server fans out)
-///   - Analytics / content moderation
-///
-/// Protocol:
-///   Client → Server: call-sfu   {type, roomId, offer}
-///   Server → Client: sfu-offer  {type, roomId, offer}   (to other participant)
-///   Client → Server: sfu-answer {type, roomId, answer}
-///   Client → Server: sfu-ice    {type, roomId, candidate}
-///   Server → Client: sfu-ice    {type, roomId, candidate}
-///   Client → Server: sfu-leave  {type, roomId}
-///
-/// NOTE: This file implements the signaling coordination layer.
-/// Actual DTLS/ICE/RTP relay requires a dedicated media server process
-/// (e.g. mediasoup, Janus, or a custom Tokio task with webrtc-rs).
-/// The placeholders below show where to call out to that process.
-///
-/// For a production deployment, integrate one of:
-///   a) mediasoup (Node.js, battle-tested) — call via REST API from Rust
-///   b) livekit-server (Go) — call LiveKit SDK from Flutter client directly
-///   c) Janus Gateway (C) — WebRTC gateway
-///   d) webrtc-rs (Rust, alpha) — embed directly in this binary
+//! signaling/sfu_relay.rs
+//!
+//! Server-side WebRTC SFU (Selective Forwarding Unit) relay.
+//!
+//! Architecture:
+//!   - Each SFU room has exactly one "media relay task" running on the server.
+//!   - The server terminates DTLS/ICE with each participant and re-forwards
+//!     RTP packets between them (no transcoding — pure relay).
+//!   - This avoids client NAT traversal issues entirely: clients connect to
+//!     the server, the server bridges them.
+//!
+//! When to use SFU relay instead of pure P2P:
+//!   - Symmetric NAT / corporate firewalls (TURN is expensive; SFU is cheaper)
+//!   - Server-side recording (server has plaintext audio/video)
+//!   - Group calls > 2 participants (each sender uploads once; server fans out)
+//!   - Analytics / content moderation
+//!
+//! Protocol:
+//!   Client → Server: call-sfu   {type, roomId, offer}
+//!   Server → Client: sfu-offer  {type, roomId, offer}   (to other participant)
+//!   Client → Server: sfu-answer {type, roomId, answer}
+//!   Client → Server: sfu-ice    {type, roomId, candidate}
+//!   Server → Client: sfu-ice    {type, roomId, candidate}
+//!   Client → Server: sfu-leave  {type, roomId}
+//!
+//! NOTE: This file implements the signaling coordination layer.
+//! Actual DTLS/ICE/RTP relay requires a dedicated media server process
+//! (e.g. mediasoup, Janus, or a custom Tokio task with webrtc-rs).
+//! The placeholders below show where to call out to that process.
+//!
+//! For a production deployment, integrate one of:
+//!   a) mediasoup (Node.js, battle-tested) — call via REST API from Rust
+//!   b) livekit-server (Go) — call LiveKit SDK from Flutter client directly
+//!   c) Janus Gateway (C) — WebRTC gateway
+//!   d) webrtc-rs (Rust, alpha) — embed directly in this binary
 
 use serde_json::{json, Value};
 use std::{collections::HashMap, sync::Arc, time::Instant};
@@ -149,7 +149,7 @@ impl SfuRegistry {
 ///   4. ICE candidates flow via sfu-ice
 ///   5. sfu-leave cleans up
 pub async fn handle_sfu_message(
-    hub: &SignalingHub,
+    _hub: &SignalingHub,
     sfu_rooms: &SfuRoomStore,
     from: Uuid,
     display_name: &str,
@@ -168,8 +168,8 @@ pub async fn handle_sfu_message(
 // ── Join / create SFU room ───────────────────────────────────────────────────
 
 async fn handle_sfu_join(
-    hub: &SignalingHub,
-    store: &SfuRoomStore,
+    _hub: &SignalingHub,
+    _store: &SfuRoomStore,
     from: Uuid,
     display_name: &str,
     parsed: &Value,
@@ -180,7 +180,7 @@ async fn handle_sfu_join(
         .ok_or_else(|| AppError::BadRequest("Missing roomId".into()))?
         .to_string();
 
-    let offer = parsed
+    let _offer = parsed
         .get("offer")
         .cloned()
         .ok_or_else(|| AppError::BadRequest("Missing offer".into()))?;
@@ -278,8 +278,8 @@ async fn handle_sfu_join(
 // ── SFU answer ───────────────────────────────────────────────────────────────
 
 async fn handle_sfu_answer(
-    hub: &SignalingHub,
-    store: &SfuRoomStore,
+    _hub: &SignalingHub,
+    _store: &SfuRoomStore,
     from: Uuid,
     parsed: &Value,
 ) -> Result<(), AppError> {
@@ -317,8 +317,8 @@ async fn handle_sfu_answer(
 // ── SFU ICE candidate ─────────────────────────────────────────────────────────
 
 async fn handle_sfu_ice(
-    hub: &SignalingHub,
-    store: &SfuRoomStore,
+    _hub: &SignalingHub,
+    _store: &SfuRoomStore,
     from: Uuid,
     parsed: &Value,
 ) -> Result<(), AppError> {
@@ -327,7 +327,7 @@ async fn handle_sfu_ice(
         .and_then(Value::as_str)
         .ok_or_else(|| AppError::BadRequest("Missing roomId".into()))?;
 
-    let candidate = parsed
+    let _candidate = parsed
         .get("candidate")
         .cloned()
         .ok_or_else(|| AppError::BadRequest("Missing candidate".into()))?;
@@ -352,8 +352,8 @@ async fn handle_sfu_ice(
 // ── SFU leave ────────────────────────────────────────────────────────────────
 
 async fn handle_sfu_leave(
-    hub: &SignalingHub,
-    store: &SfuRoomStore,
+    _hub: &SignalingHub,
+    _store: &SfuRoomStore,
     from: Uuid,
     parsed: &Value,
 ) -> Result<(), AppError> {

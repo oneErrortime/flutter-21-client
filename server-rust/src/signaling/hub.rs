@@ -1,16 +1,15 @@
-/// Signaling Hub
-///
-/// Manages WebSocket connections across all server instances using:
-///   - DashMap for O(1) concurrent local lookups (no Mutex/RwLock contention)
-///   - Redis Pub/Sub for cross-instance message routing
-///     (horizontal scaling: multiple server pods behind a load balancer)
-///
-/// Message flow:
-///   Client A → WS → Server 1 → Redis pub → Server 2 → WS → Client B
-///                   (if B is on same server: direct send, skip Redis)
+//! Signaling Hub
+//!
+//! Manages WebSocket connections across all server instances using:
+//!   - DashMap for O(1) concurrent local lookups (no Mutex/RwLock contention)
+//!   - Redis Pub/Sub for cross-instance message routing
+//!     (horizontal scaling: multiple server pods behind a load balancer)
+//!
+//! Message flow:
+//!   Client A → WS → Server 1 → Redis pub → Server 2 → WS → Client B
+//!                   (if B is on same server: direct send, skip Redis)
 
 use dashmap::DashMap;
-use futures_util::SinkExt;
 use redis::{aio::ConnectionManager, AsyncCommands};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -93,10 +92,9 @@ impl SignalingHub {
     /// Spawn a Redis subscriber task that delivers messages from other instances
     pub fn spawn_redis_subscriber(&self, mut sub_conn: redis::aio::PubSub) {
         let connections = self.connections.clone();
-        let channel = self.channel.clone();
+        let _channel = self.channel.clone();
 
         tokio::spawn(async move {
-            use redis::Msg;
             loop {
                 if let Some(msg) = sub_conn.on_message().next().await {
                     let payload: String = match msg.get_payload() {

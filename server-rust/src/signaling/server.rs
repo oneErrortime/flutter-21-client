@@ -1,10 +1,10 @@
-/// WebRTC Signaling Server Handler
-///
-/// Handles WebSocket connections with:
-///   - Per-connection async tasks (no shared Mutex per message)
-///   - Split read/write channels via mpsc
-///   - Encrypted signaling payloads (AES-256-GCM)
-///   - RFC 8825 / 8829 / 8445 compliant message types
+//! WebRTC Signaling Server Handler
+//!
+//! Handles WebSocket connections with:
+//!   - Per-connection async tasks (no shared Mutex per message)
+//!   - Split read/write channels via mpsc
+//!   - Encrypted signaling payloads (AES-256-GCM)
+//!   - RFC 8825 / 8829 / 8445 compliant message types
 
 use axum::{
     extract::{
