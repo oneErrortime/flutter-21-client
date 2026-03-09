@@ -96,14 +96,14 @@ pub async fn list_contacts(
     let rows = sqlx::query!(
         r#"
         SELECT
-            u.id, u.username, u.display_name, u.avatar_url, u.last_seen,
+            u.user_id, u.username, u.display_name, u.avatar_url, u.last_seen,
             c.created_at,
             CASE WHEN r.user_id IS NOT NULL THEN true ELSE false END as "is_online!: bool"
         FROM contacts c
         JOIN users u ON (
-            CASE WHEN c.requester_id = $1 THEN c.target_id ELSE c.requester_id END = u.id
+            CASE WHEN c.requester_id = $1 THEN c.target_id ELSE c.requester_id END = u.user_id
         )
-        LEFT JOIN redis_online r ON r.user_id = u.id   -- conceptual; use Redis SET check
+        LEFT JOIN redis_online r ON r.user_id = u.user_id   -- conceptual; use Redis SET check
         WHERE (c.requester_id = $1 OR c.target_id = $1)
           AND c.status = 'accepted'
         ORDER BY u.display_name ASC
@@ -118,9 +118,9 @@ pub async fn list_contacts(
     let contacts: Vec<ContactEntry> = {
         let mut out = Vec::with_capacity(rows.len());
         for row in rows {
-            let is_online = state.redis.is_online(&row.id).await.unwrap_or(false);
+            let is_online = state.redis.is_online(&row.user_id).await.unwrap_or(false);
             out.push(ContactEntry {
-                user_id: row.id,
+                user_id: row.user_id,
                 username: row.username,
                 display_name: row.display_name,
                 avatar_url: row.avatar_url,
@@ -144,9 +144,9 @@ pub async fn pending_requests(
 ) -> ApiResult<Json<serde_json::Value>> {
     let rows = sqlx::query!(
         r#"
-        SELECT u.id, u.username, u.display_name, u.avatar_url, c.created_at
+        SELECT u.user_id, u.username, u.display_name, u.avatar_url, c.created_at
         FROM contacts c
-        JOIN users u ON c.requester_id = u.id
+        JOIN users u ON c.requester_id = u.user_id
         WHERE c.target_id = $1 AND c.status = 'pending'
         ORDER BY c.created_at DESC
         "#,
@@ -160,7 +160,7 @@ pub async fn pending_requests(
         .iter()
         .map(|r| {
             serde_json::json!({
-                "userId":      r.id,
+                "userId":      r.user_id,
                 "username":    r.username,
                 "displayName": r.display_name,
                 "avatarUrl":   r.avatar_url,
@@ -180,9 +180,9 @@ pub async fn sent_requests(
 ) -> ApiResult<Json<serde_json::Value>> {
     let rows = sqlx::query!(
         r#"
-        SELECT u.id, u.username, u.display_name, u.avatar_url, c.created_at
+        SELECT u.user_id, u.username, u.display_name, u.avatar_url, c.created_at
         FROM contacts c
-        JOIN users u ON c.target_id = u.id
+        JOIN users u ON c.target_id = u.user_id
         WHERE c.requester_id = $1 AND c.status = 'pending'
         ORDER BY c.created_at DESC
         "#,
@@ -196,7 +196,7 @@ pub async fn sent_requests(
         .iter()
         .map(|r| {
             serde_json::json!({
-                "userId":      r.id,
+                "userId":      r.user_id,
                 "username":    r.username,
                 "displayName": r.display_name,
                 "avatarUrl":   r.avatar_url,
@@ -223,7 +223,7 @@ pub async fn send_request(
 
     // Check target exists
     let exists = sqlx::query_scalar!(
-        "SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)",
+        "SELECT EXISTS(SELECT 1 FROM users WHERE user_id = $1)",
         target
     )
     .fetch_one(&state.db.pool)
@@ -419,13 +419,13 @@ pub async fn get_user_by_handle(
     let user = sqlx::query!(
         r#"
         SELECT
-            u.id, u.username, u.display_name, u.avatar_url,
+            u.user_id, u.username, u.display_name, u.avatar_url,
             u.discoverable,
             EXISTS(
                 SELECT 1 FROM contacts c
                 WHERE c.status = 'accepted'
-                  AND ((c.requester_id = $2 AND c.target_id = u.id)
-                    OR (c.requester_id = u.id AND c.target_id = $2))
+                  AND ((c.requester_id = $2 AND c.target_id = u.user_id)
+                    OR (c.requester_id = u.user_id AND c.target_id = $2))
             ) as "is_contact!: bool"
         FROM users u
         WHERE lower(u.username) = lower($1)
@@ -447,7 +447,7 @@ pub async fn get_user_by_handle(
         }
         Some(u) => Ok(Json(serde_json::json!({
             "user": {
-                "userId":      u.id,
+                "userId":      u.user_id,
                 "username":    u.username,
                 "displayName": u.display_name,
                 "avatarUrl":   u.avatar_url,

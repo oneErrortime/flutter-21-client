@@ -149,7 +149,7 @@ impl SfuRegistry {
 ///   4. ICE candidates flow via sfu-ice
 ///   5. sfu-leave cleans up
 pub async fn handle_sfu_message(
-    _hub: &SignalingHub,
+    hub: &SignalingHub,
     sfu_rooms: &SfuRoomStore,
     from: Uuid,
     display_name: &str,
@@ -168,8 +168,8 @@ pub async fn handle_sfu_message(
 // ── Join / create SFU room ───────────────────────────────────────────────────
 
 async fn handle_sfu_join(
-    _hub: &SignalingHub,
-    _store: &SfuRoomStore,
+    hub: &SignalingHub,
+    store: &SfuRoomStore,
     from: Uuid,
     display_name: &str,
     parsed: &Value,
@@ -278,8 +278,8 @@ async fn handle_sfu_join(
 // ── SFU answer ───────────────────────────────────────────────────────────────
 
 async fn handle_sfu_answer(
-    _hub: &SignalingHub,
-    _store: &SfuRoomStore,
+    hub: &SignalingHub,
+    store: &SfuRoomStore,
     from: Uuid,
     parsed: &Value,
 ) -> Result<(), AppError> {
@@ -317,8 +317,8 @@ async fn handle_sfu_answer(
 // ── SFU ICE candidate ─────────────────────────────────────────────────────────
 
 async fn handle_sfu_ice(
-    _hub: &SignalingHub,
-    _store: &SfuRoomStore,
+    hub: &SignalingHub,
+    store: &SfuRoomStore,
     from: Uuid,
     parsed: &Value,
 ) -> Result<(), AppError> {
@@ -352,8 +352,8 @@ async fn handle_sfu_ice(
 // ── SFU leave ────────────────────────────────────────────────────────────────
 
 async fn handle_sfu_leave(
-    _hub: &SignalingHub,
-    _store: &SfuRoomStore,
+    hub: &SignalingHub,
+    store: &SfuRoomStore,
     from: Uuid,
     parsed: &Value,
 ) -> Result<(), AppError> {

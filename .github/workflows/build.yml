@@ -330,8 +330,8 @@ jobs:
 
             CREATE TABLE IF NOT EXISTS contacts (
               id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-              requester_id UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-              target_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+              requester_id UUID        NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+              target_id    UUID        NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
               status       TEXT        NOT NULL DEFAULT 'pending'
                                CHECK (status IN ('pending','accepted','blocked')),
               created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -343,7 +343,7 @@ jobs:
 
             CREATE TABLE IF NOT EXISTS invite_links (
               id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-              owner_id   UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+              owner_id   UUID        NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
               token      TEXT        NOT NULL UNIQUE,
               uses_left  INTEGER     NOT NULL DEFAULT 1,
               expires_at TIMESTAMPTZ NOT NULL DEFAULT now() + INTERVAL '24 hours',

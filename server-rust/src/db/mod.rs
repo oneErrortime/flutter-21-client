@@ -19,6 +19,7 @@ pub struct User {
     pub avatar_url: Option<String>,
     pub password_hash: String,
     pub is_active: bool,
+    pub discoverable: bool,
     pub last_seen: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -246,8 +247,8 @@ CREATE INDEX IF NOT EXISTS idx_rooms_expires ON rooms(expires_at);
 
 CREATE TABLE IF NOT EXISTS contacts (
     id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    requester_id UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    target_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    requester_id UUID        NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    target_id    UUID        NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     status       TEXT        NOT NULL DEFAULT 'pending'
                      CHECK (status IN ('pending','accepted','blocked')),
     created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -260,7 +261,7 @@ CREATE INDEX IF NOT EXISTS contacts_status_idx    ON contacts (status);
 
 CREATE TABLE IF NOT EXISTS invite_links (
     id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    owner_id   UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    owner_id   UUID        NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     token      TEXT        NOT NULL UNIQUE,
     uses_left  INTEGER     NOT NULL DEFAULT 1,
     expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '24 hours',
