@@ -297,6 +297,7 @@ class QuicNoiseCall {
   // For now this is the interface contract; integration requires either:
   //   a) quic_dart package (tracks quinn-rs)
   //   b) Platform channel to native QUIC (Android: Cronet / Quiche)
+  // ignore: unused_field
   dynamic _quicConnection; // QuicConnection placeholder
 
   QuicNoiseCall({
@@ -320,6 +321,7 @@ class QuicNoiseCall {
     );
 
     // 1. Perform Noise IK handshake (1 RTT)
+    // ignore: unused_local_variable
     final (:message1, :finish) = await handshake.initiate();
 
     // 2. Send message1 to peer via QUIC stream 0

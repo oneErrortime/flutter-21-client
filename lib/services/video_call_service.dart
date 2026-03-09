@@ -723,7 +723,6 @@ class VideoCallService extends ChangeNotifier {
   /// Falls back gracefully if the codec is not supported.
   String _preferCodec(String sdp, String preferred) {
     final lines = sdp.split('\r\n');
-    final result = <String>[];
     int? mVideoLineIndex;
 
     // Find the m=video line

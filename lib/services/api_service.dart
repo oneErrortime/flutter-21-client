@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../core/constants.dart';
 import '../models/models.dart';
+import 'contacts_service.dart';
 import 'secure_storage_service.dart';
 
 class ApiService {
@@ -154,5 +155,65 @@ class ApiService {
   Future<Map<String, dynamic>> getRoomInfo(String roomId) async {
     final response = await _dio.get('/api/rooms/$roomId');
     return response.data as Map<String, dynamic>;
+  }
+
+  // ── Users ──────────────────────────────────────────────────────────────────
+
+  /// Find user by exact @handle.
+  /// Server only returns a result if the user is discoverable or already a contact.
+  Future<Contact?> getUserByHandle(String handle) async {
+    try {
+      final response = await _dio.get('/api/users/by-handle/$handle');
+      final json = response.data['user'] as Map<String, dynamic>?;
+      if (json == null) return null;
+      return Contact.fromJson({...json, 'status': 'none'});
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // ── Contacts ───────────────────────────────────────────────────────────────
+
+  Future<List<Contact>> getContacts() async {
+    final response = await _dio.get('/api/contacts');
+    final list = response.data['contacts'] as List;
+    return list.map((j) => Contact.fromJson(j as Map<String, dynamic>)).toList();
+  }
+
+  Future<List<Contact>> getPendingContacts() async {
+    final response = await _dio.get('/api/contacts/pending');
+    final list = response.data['requests'] as List;
+    return list.map((j) => Contact.fromJson({...j as Map<String, dynamic>, 'status': 'pending_incoming'})).toList();
+  }
+
+  Future<List<Contact>> getSentContactRequests() async {
+    final response = await _dio.get('/api/contacts/sent');
+    final list = response.data['requests'] as List;
+    return list.map((j) => Contact.fromJson({...j as Map<String, dynamic>, 'status': 'pending_outgoing'})).toList();
+  }
+
+  Future<void> sendContactRequest(String targetUserId) async {
+    await _dio.post('/api/contacts/request', data: {'targetUserId': targetUserId});
+  }
+
+  Future<void> acceptContactRequest(String requesterId) async {
+    await _dio.post('/api/contacts/accept', data: {'requesterId': requesterId});
+  }
+
+  Future<void> declineContactRequest(String requesterId) async {
+    await _dio.post('/api/contacts/decline', data: {'requesterId': requesterId});
+  }
+
+  Future<void> removeContact(String userId) async {
+    await _dio.delete('/api/contacts/$userId');
+  }
+
+  Future<void> blockUser(String userId) async {
+    await _dio.post('/api/contacts/block', data: {'userId': userId});
+  }
+
+  Future<String?> generateInviteLink() async {
+    final response = await _dio.post('/api/contacts/invite-link');
+    return response.data['link'] as String?;
   }
 }

@@ -36,12 +36,8 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-    time::{Duration, Instant},
-};
-use tokio::sync::{Mutex, RwLock};
+use std::{collections::HashMap, sync::Arc, time::Instant};
+use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{errors::AppError, signaling::hub::SignalingHub};
@@ -82,9 +78,7 @@ impl SfuRoom {
 
     pub fn add_participant(&mut self, p: SfuParticipant) -> Result<(), AppError> {
         if self.participants.len() >= self.max_participants {
-            return Err(AppError::BadRequest(
-                "Room is full".into(),
-            ));
+            return Err(AppError::BadRequest("Room is full".into()));
         }
         self.participants.insert(p.user_id, p);
         Ok(())
@@ -121,23 +115,7 @@ impl SfuRegistry {
         Self::default()
     }
 
-    /// Get or create a room.
-    pub async fn get_or_create(&self, room_id: &str) -> Arc<Mutex<SfuRoom>> {
-        // NOTE: For simplicity we store SfuRoom directly in an outer RwLock.
-        // A production implementation would use per-room Arc<Mutex<>> to reduce
-        // contention across rooms.
-        let mut rooms = self.rooms.write().await;
-        rooms
-            .entry(room_id.to_string())
-            .or_insert_with(|| SfuRoom::new(room_id.to_string()));
-        drop(rooms);
-
-        // Return a guard-less reference; callers use the registry lock.
-        // In production: return Arc<Mutex<SfuRoom>> from a DashMap.
-        todo!("Replace with DashMap<String, Arc<Mutex<SfuRoom>>> for per-room locking");
-    }
-
-    /// Remove empty rooms to free memory.
+    /// Remove empty rooms to free memory (call periodically).
     pub async fn reap_empty(&self) {
         let mut rooms = self.rooms.write().await;
         rooms.retain(|_, room| !room.is_empty());
@@ -389,11 +367,7 @@ async fn handle_sfu_leave(
 
         if removed {
             // Notify remaining participants
-            let notify: Vec<Uuid> = room
-                .participants
-                .keys()
-                .copied()
-                .collect();
+            let notify: Vec<Uuid> = room.participants.keys().copied().collect();
 
             for &other_id in &notify {
                 let _ = hub

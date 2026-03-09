@@ -439,7 +439,4 @@ class WebRTCService extends ChangeNotifier {
   }
 }
 
-extension CallStateX on CallState {
-  bool get isIdle => this == CallState.idle || this == CallState.ended ||
-      this == CallState.declined || this == CallState.failed || this == CallState.missed;
-}
+// CallStateX extension is defined in models/models.dart — do not duplicate here.

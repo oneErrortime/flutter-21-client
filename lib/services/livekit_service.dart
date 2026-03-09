@@ -33,6 +33,7 @@ import 'dart:async';
 ///   - All participants hold a shared epoch key (rotated when someone leaves)
 class LiveKitCallService {
   // Room? _room;  // uncomment with livekit_client
+  // ignore: unused_field
   dynamic _room; // placeholder until livekit_client is added to pubspec
 
   final StreamController<List<RemoteParticipantInfo>> _participantsController =

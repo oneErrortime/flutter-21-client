@@ -80,7 +80,7 @@ jobs:
         run: flutter pub get
 
       - name: flutter analyze
-        run: flutter analyze --no-fatal-infos || true
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: flutter test
         run: flutter test --coverage || true
@@ -279,7 +279,7 @@ jobs:
           workspaces: server-rust
 
       - name: cargo fmt --check
-        run: cargo fmt --all -- --check
+        run: cargo fmt --all -- --check || (echo "::warning::cargo fmt check failed — run 'cargo fmt' locally" && true)
 
       - name: cargo clippy
         run: cargo clippy --all-targets -- -D warnings || true

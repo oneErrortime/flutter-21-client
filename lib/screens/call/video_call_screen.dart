@@ -93,13 +93,6 @@ class _VideoCallScreenState extends State<VideoCallScreen>
     if (_showControls) _scheduleHideControls();
   }
 
-  String _fmt(Duration d) {
-    final h = d.inHours;
-    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return h > 0 ? '$h:$m:$s' : '$m:$s';
-  }
-
   @override
   Widget build(BuildContext context) {
     return Consumer<VideoCallService>(
@@ -177,7 +170,7 @@ class _VideoCallScreenState extends State<VideoCallScreen>
   void _showFingerprintSheet(BuildContext context, VideoCallService svc) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.surfaceColor,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),

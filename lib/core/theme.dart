@@ -20,7 +20,7 @@ class AppTheme {
         secondary: _secondary,
         error: _error,
         surface: Color(0xFF1E1E2E),
-        background: Color(0xFF12121F),
+        // background is deprecated in Flutter 3.18+; surface covers both roles
       ),
       textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
       inputDecorationTheme: InputDecorationTheme(

@@ -13,8 +13,20 @@
 
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:convert/convert.dart';
 import 'package:cryptography/cryptography.dart';
+
+// Hex codec helpers (replaces package:convert which is not in pubspec)
+Uint8List _hexDecode(String hex) {
+  assert(hex.length.isEven, 'Hex string must have even length');
+  final bytes = Uint8List(hex.length ~/ 2);
+  for (var i = 0; i < hex.length; i += 2) {
+    bytes[i ~/ 2] = int.parse(hex.substring(i, i + 2), radix: 16);
+  }
+  return bytes;
+}
+
+String _hexEncode(List<int> bytes) =>
+    bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 
 class SignalingCrypto {
   final Uint8List _key;
@@ -36,8 +48,8 @@ class SignalingCrypto {
       final nonceHex = encrypted.substring(0, colonIdx);
       final ciphertextHex = encrypted.substring(colonIdx + 1);
 
-      final nonceBytes = Uint8List.fromList(hex.decode(nonceHex));
-      final ciphertextWithTag = Uint8List.fromList(hex.decode(ciphertextHex));
+      final nonceBytes = Uint8List.fromList(_hexDecode(nonceHex));
+      final ciphertextWithTag = Uint8List.fromList(_hexDecode(ciphertextHex));
 
       // GCM tag is the last 16 bytes
       final ciphertext = ciphertextWithTag.sublist(0, ciphertextWithTag.length - 16);
@@ -73,6 +85,6 @@ class SignalingCrypto {
       ...secretBox.mac.bytes,
     ]);
 
-    return '${hex.encode(nonce)}:${hex.encode(ciphertextWithTag)}';
+    return '${_hexEncode(nonce)}:${_hexEncode(ciphertextWithTag)}';
   }
 }

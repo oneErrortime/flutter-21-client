@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'core/theme.dart';
+import 'models/models.dart';
 import 'services/auth_service.dart';
+import 'services/api_service.dart';
+import 'services/contacts_service.dart';
 import 'services/signaling_service.dart';
 import 'services/webrtc_service.dart';
 import 'screens/splash_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'screens/home/home_screen.dart';
+import 'screens/contacts/contacts_screen.dart';
 import 'screens/call/incoming_call_screen.dart';
 import 'screens/call/active_call_screen.dart';
 
@@ -26,6 +30,7 @@ class VoiceCallApp extends StatefulWidget {
 
 class _VoiceCallAppState extends State<VoiceCallApp> {
   late final AuthService _authService;
+  late final ContactsService _contactsService;
   late final SignalingService _signalingService;
   late final WebRTCService _webRTCService;
   late final GoRouter _router;
@@ -34,6 +39,7 @@ class _VoiceCallAppState extends State<VoiceCallApp> {
   void initState() {
     super.initState();
     _authService = AuthService();
+    _contactsService = ContactsService(ApiService());
     _signalingService = SignalingService();
     _webRTCService = WebRTCService(_signalingService);
 
@@ -66,6 +72,7 @@ class _VoiceCallAppState extends State<VoiceCallApp> {
         GoRoute(path: '/auth/login', builder: (_, __) => const LoginScreen()),
         GoRoute(path: '/auth/register', builder: (_, __) => const RegisterScreen()),
         GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
+        GoRoute(path: '/contacts', builder: (_, __) => const ContactsScreen()),
         GoRoute(path: '/call/incoming', builder: (_, __) => const IncomingCallScreen()),
         GoRoute(path: '/call/active', builder: (_, __) => const ActiveCallScreen()),
         // Deep link: voicecall://join/:roomId  or  https://yourapp.com/join/:roomId
@@ -92,6 +99,7 @@ class _VoiceCallAppState extends State<VoiceCallApp> {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: _authService),
+        ChangeNotifierProvider.value(value: _contactsService),
         ChangeNotifierProvider.value(value: _signalingService),
         ChangeNotifierProvider.value(value: _webRTCService),
       ],
@@ -104,6 +112,3 @@ class _VoiceCallAppState extends State<VoiceCallApp> {
     );
   }
 }
-
-// Re-export for convenience
-export 'models/models.dart';

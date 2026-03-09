@@ -215,21 +215,34 @@ async fn dispatch_message(
             let candidate = require_field(msg, "candidate")?;
             // Encrypt ICE candidates too (contain IP addresses)
             let encrypted = state.crypto.encrypt(&candidate.to_string())?;
-            hub.send_to(&to, json!({
-                "type": "ice",
-                "candidate": encrypted,
-                "from": from
-            }).to_string()).await?;
+            hub.send_to(
+                &to,
+                json!({
+                    "type": "ice",
+                    "candidate": encrypted,
+                    "from": from
+                })
+                .to_string(),
+            )
+            .await?;
         }
 
         // ── DECLINE ─────────────────────────────────────────────────────────
         "decline" => {
             let to = parse_uuid(msg, "to")?;
-            let reason = msg.get("reason").and_then(Value::as_str).unwrap_or("declined");
-            hub.send_to(&to, json!({
-                "type": "call-declined",
-                "reason": reason
-            }).to_string()).await?;
+            let reason = msg
+                .get("reason")
+                .and_then(Value::as_str)
+                .unwrap_or("declined");
+            hub.send_to(
+                &to,
+                json!({
+                    "type": "call-declined",
+                    "reason": reason
+                })
+                .to_string(),
+            )
+            .await?;
             state.redis.clear_busy(&from).await?;
             state.redis.clear_busy(&to).await?;
         }
@@ -237,7 +250,8 @@ async fn dispatch_message(
         // ── HANGUP ──────────────────────────────────────────────────────────
         "hangup" => {
             let to = parse_uuid(msg, "to")?;
-            hub.send_to(&to, json!({"type": "hangup"}).to_string()).await?;
+            hub.send_to(&to, json!({"type": "hangup"}).to_string())
+                .await?;
             state.redis.clear_busy(&from).await?;
             state.redis.clear_busy(&to).await?;
             metrics::counter!("calls.ended").increment(1);
@@ -248,18 +262,29 @@ async fn dispatch_message(
         "create-room" => {
             let room = state.db.create_room(&from).await?;
             let link = format!("{}/join/{}", state.config.app_base_url, room.room_id);
-            hub.send_to(&from, json!({
-                "type": "room-created",
-                "roomId": room.room_id,
-                "link": link
-            }).to_string()).await?;
+            hub.send_to(
+                &from,
+                json!({
+                    "type": "room-created",
+                    "roomId": room.room_id,
+                    "link": link
+                })
+                .to_string(),
+            )
+            .await?;
         }
 
         // ── ROOM: HOST (creator comes online after creating link) ───────────
         "room-host" => {
-            let room_id_str = msg.get("roomId").and_then(Value::as_str)
+            let room_id_str = msg
+                .get("roomId")
+                .and_then(Value::as_str)
                 .ok_or(AppError::BadRequest("Missing roomId".into()))?;
-            hub.send_to(&from, json!({"type":"room-host-ack","roomId": room_id_str}).to_string()).await?;
+            hub.send_to(
+                &from,
+                json!({"type":"room-host-ack","roomId": room_id_str}).to_string(),
+            )
+            .await?;
             // Store host mapping in Redis
             let mut conn = state.redis.conn.clone();
             let _ = redis::cmd("SETEX")
@@ -272,18 +297,28 @@ async fn dispatch_message(
 
         // ── ROOM: JOIN (joiner sends offer) ─────────────────────────────────
         "join-room" => {
-            let room_id_str = msg.get("roomId").and_then(Value::as_str)
+            let room_id_str = msg
+                .get("roomId")
+                .and_then(Value::as_str)
                 .ok_or(AppError::BadRequest("Missing roomId".into()))?;
             let room_id = Uuid::parse_str(room_id_str)
                 .map_err(|_| AppError::BadRequest("Invalid roomId".into()))?;
 
-            let room = state.db.find_room(&room_id).await?
+            let room = state
+                .db
+                .find_room(&room_id)
+                .await?
                 .ok_or(AppError::NotFound("Room not found or expired".into()))?;
 
             let offer = require_field(msg, "offer")?;
             let encrypted_offer = state.crypto.encrypt(&offer.to_string())?;
 
-            let joiner_info = state.db.find_user_by_id(&from).await?.map(|u| u.display_name).unwrap_or_default();
+            let joiner_info = state
+                .db
+                .find_user_by_id(&from)
+                .await?
+                .map(|u| u.display_name)
+                .unwrap_or_default();
 
             // FIX: Store joiner ID in Redis so room-ice can route back to them
             let mut conn = state.redis.conn.clone();
@@ -296,18 +331,25 @@ async fn dispatch_message(
                 .await;
 
             // Notify host
-            hub.send_to(&room.created_by, json!({
-                "type": "room-joined",
-                "offer": encrypted_offer,
-                "joinerId": from,  // FIX: pass joinerId so host can include it in room-answer
-                "joinerName": joiner_info,
-                "roomId": room_id_str
-            }).to_string()).await?;
+            hub.send_to(
+                &room.created_by,
+                json!({
+                    "type": "room-joined",
+                    "offer": encrypted_offer,
+                    "joinerId": from,
+                    "joinerName": joiner_info,
+                    "roomId": room_id_str
+                })
+                .to_string(),
+            )
+            .await?;
         }
 
         // ── ROOM: ANSWER (host answers joiner) ──────────────────────────────
         "room-answer" => {
-            let room_id_str = msg.get("roomId").and_then(Value::as_str)
+            let room_id_str = msg
+                .get("roomId")
+                .and_then(Value::as_str)
                 .ok_or(AppError::BadRequest("Missing roomId".into()))?;
             let answer = require_field(msg, "answer")?;
             let encrypted_answer = state.crypto.encrypt(&answer.to_string())?;
@@ -329,17 +371,24 @@ async fn dispatch_message(
                     .map_err(|_| AppError::Internal(anyhow::anyhow!("Invalid stored joiner id")))?
             };
 
-            hub.send_to(&joiner_id, json!({
-                "type": "room-answered",
-                "answer": encrypted_answer,
-                "roomId": room_id_str
-            }).to_string()).await?;
+            hub.send_to(
+                &joiner_id,
+                json!({
+                    "type": "room-answered",
+                    "answer": encrypted_answer,
+                    "roomId": room_id_str
+                })
+                .to_string(),
+            )
+            .await?;
         }
 
         // ── ROOM: ICE ────────────────────────────────────────────────────────
         "room-ice" => {
             // FIX: Flutter sends 'roomId', not 'to'
-            let room_id_str = msg.get("roomId").and_then(Value::as_str)
+            let room_id_str = msg
+                .get("roomId")
+                .and_then(Value::as_str)
                 .ok_or(AppError::BadRequest("Missing roomId".into()))?;
             let room_id = Uuid::parse_str(room_id_str)
                 .map_err(|_| AppError::BadRequest("Invalid roomId".into()))?;
@@ -348,12 +397,13 @@ async fn dispatch_message(
             let encrypted = state.crypto.encrypt(&candidate.to_string())?;
 
             // Route based on role: 'caller' sent by host → forward to joiner, and vice versa
-            // Lookup room to find the other participant
-            let room = state.db.find_room(&room_id).await?
+            let room = state
+                .db
+                .find_room(&room_id)
+                .await?
                 .ok_or(AppError::NotFound("Room not found".into()))?;
 
             // The host is room.created_by; joiner is the other party
-            // Role indicates who sent this ICE candidate (their position in the call)
             let mut conn = state.redis.conn.clone();
             let joiner_key = format!("room_joiner:{room_id_str}");
             let joiner_id_str: Option<String> = redis::cmd("GET")
@@ -371,11 +421,16 @@ async fn dispatch_message(
             };
 
             if let Some(target_id) = target {
-                hub.send_to(&target_id, json!({
-                    "type": "room-ice",
-                    "candidate": encrypted,
-                    "from": from
-                }).to_string()).await?;
+                hub.send_to(
+                    &target_id,
+                    json!({
+                        "type": "room-ice",
+                        "candidate": encrypted,
+                        "from": from
+                    })
+                    .to_string(),
+                )
+                .await?;
             }
         }
 
@@ -383,7 +438,8 @@ async fn dispatch_message(
         "heartbeat" => {
             // Refresh online TTL in Redis
             let _ = state.redis.set_online(&from).await;
-            hub.send_to(&from, json!({"type":"heartbeat-ack"}).to_string()).await?;
+            hub.send_to(&from, json!({"type":"heartbeat-ack"}).to_string())
+                .await?;
         }
 
         other => {
