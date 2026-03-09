@@ -123,7 +123,7 @@ pub async fn list_contacts(
                 display_name: row.display_name,
                 avatar_url: row.avatar_url,
                 is_online,
-                last_seen: row.last_seen.map(|t| t.to_rfc3339()),
+                last_seen: Some(row.last_seen.to_rfc3339()),
                 status: "accepted".into(),
                 created_at: row.created_at.to_rfc3339(),
             });
@@ -438,7 +438,7 @@ pub async fn get_user_by_handle(
 
     match user {
         None => Err(AppError::NotFound("User not found".into())),
-        Some(u) if !u.discoverable.unwrap_or(true) && !u.is_contact => {
+        Some(u) if !u.discoverable && !u.is_contact => {
             // User exists but is not discoverable and not a contact — return 404
             // to avoid confirming the account exists
             Err(AppError::NotFound("User not found".into()))

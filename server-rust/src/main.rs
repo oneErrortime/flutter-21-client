@@ -167,12 +167,7 @@ async fn main() -> anyhow::Result<()> {
                 .route_layer(middleware::from_fn_with_state(state.clone(), require_auth)),
         );
 
-    let user_routes = Router::new()
-        .route("/search", get(routes::get_user)) // actually search_users
-        .route("/:user_id", get(routes::get_user))
-        .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
-
-    // Overwrite search route (workaround for axum routing)
+    // user_routes — search must be declared before the :user_id catch-all
     let user_routes = Router::new()
         .route("/search", get(routes::search_users))
         .route("/:user_id", get(routes::get_user))

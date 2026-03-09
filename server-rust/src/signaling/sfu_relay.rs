@@ -278,7 +278,7 @@ async fn handle_sfu_join(
 // ── SFU answer ───────────────────────────────────────────────────────────────
 
 async fn handle_sfu_answer(
-    hub: &SignalingHub,
+    _hub: &SignalingHub,
     store: &SfuRoomStore,
     from: Uuid,
     parsed: &Value,
@@ -317,8 +317,8 @@ async fn handle_sfu_answer(
 // ── SFU ICE candidate ─────────────────────────────────────────────────────────
 
 async fn handle_sfu_ice(
-    hub: &SignalingHub,
-    store: &SfuRoomStore,
+    _hub: &SignalingHub,
+    _store: &SfuRoomStore,
     from: Uuid,
     parsed: &Value,
 ) -> Result<(), AppError> {
