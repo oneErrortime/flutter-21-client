@@ -1,0 +1,93 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    // FlutterPlugin adds the flutter {} DSL and sets up JNI libs, assets, etc.
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+// Load signing config from key.properties (generated in CI; not committed)
+def keyPropertiesFile = rootProject.file("key.properties")
+def keyProperties = new Properties()
+if (keyPropertiesFile.exists()) {
+    keyProperties.load(new FileInputStream(keyPropertiesFile))
+}
+
+android {
+    namespace "com.voicecall"
+    compileSdk flutter.compileSdkVersion
+    ndkVersion flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    sourceSets {
+        main.java.srcDirs += "src/main/kotlin"
+    }
+
+    defaultConfig {
+        applicationId "com.voicecall"
+        // Minimum: 21 (Android 5.0) — required by flutter_webrtc
+        minSdkVersion 21
+        targetSdkVersion flutter.targetSdkVersion
+        versionCode flutter.versionCode
+        versionName flutter.versionName
+
+        // Keep Kotlin metadata for reflection used by some plugins
+        multiDexEnabled true
+    }
+
+    signingConfigs {
+        release {
+            keyAlias     keyProperties["keyAlias"]     ?: "release"
+            keyPassword  keyProperties["keyPassword"]  ?: ""
+            storeFile    keyProperties["storeFile"]    ? rootProject.file(keyProperties["storeFile"]) : null
+            storePassword keyProperties["storePassword"] ?: ""
+        }
+    }
+
+    buildTypes {
+        debug {
+            // Debuggable by default; no signing config needed
+            debuggable true
+        }
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+        }
+    }
+
+    // Required for flutter_webrtc native libs (arm64, arm, x86_64)
+    splits {
+        abi {
+            enable true
+            reset()
+            include "arm64-v8a", "armeabi-v7a", "x86_64"
+            universalApk false
+        }
+    }
+}
+
+flutter {
+    source "../.."
+}
+
+dependencies {
+    // Firebase BOM — pins all Firebase library versions in sync
+    implementation platform("com.google.firebase:firebase-bom:32.7.0")
+    implementation "com.google.firebase:firebase-messaging-ktx"
+    implementation "com.google.firebase:firebase-analytics-ktx"
+
+    // Kotlin stdlib
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+}
+
+// Apply Google Services plugin last (required by Firebase)
+apply plugin: "com.google.gms.google-services"

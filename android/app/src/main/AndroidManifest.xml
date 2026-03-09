@@ -85,6 +85,11 @@
 
         </activity>
 
+        <!-- Flutter v2 embedding declaration (required; v1 was removed in Flutter 3.x) -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2"/>
+
         <!-- Preserves splash during hot reload, remove for release -->
         <meta-data
             android:name="io.flutter.embedding.android.NormalTheme"

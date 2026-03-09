@@ -1,0 +1,21 @@
+// Flutter tool automatically manages the include of :app and flutter plugin modules.
+// Do NOT manually add plugin includes here — Flutter's plugin loading mechanism
+// (GeneratedPluginRegistrant) handles that at runtime.
+
+include ":app"
+
+def localPropertiesFile = new File(rootProject.projectDir, "local.properties")
+def properties = new Properties()
+
+assert localPropertiesFile.exists(), \
+    "local.properties not found. Create it with sdk.dir and flutter.sdk paths.\n" +
+    "  sdk.dir=/path/to/android/sdk\n  flutter.sdk=/path/to/flutter"
+
+localPropertiesFile.withReader("UTF-8") { reader -> properties.load(reader) }
+
+def flutterSdkPath = properties.getProperty("flutter.sdk")
+assert flutterSdkPath != null, "flutter.sdk not set in local.properties"
+assert new File(flutterSdkPath).isDirectory(), \
+    "flutter.sdk directory does not exist: $flutterSdkPath"
+
+apply from: "$flutterSdkPath/packages/flutter_tools/gradle/app_plugin_loader.gradle"
