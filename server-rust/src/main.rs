@@ -21,11 +21,10 @@ use axum::{
     http::{HeaderValue, Method, StatusCode},
     middleware,
     response::Json,
-    routing::{delete, get, post},
+    routing::{get, post},
     Router,
 };
 use sqlx::postgres::PgPoolOptions;
-use tower::ServiceBuilder;
 use tower_http::{
     compression::CompressionLayer,
     cors::{Any, CorsLayer},
@@ -81,7 +80,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!(port = config.port, "Starting VoiceCall server");
 
     // ── Prometheus metrics ─────────────────────────────────────────────────
-    let prom_handle = metrics::install();
+    let _prom_handle = metrics::install();
 
     // ── Database (PostgreSQL connection pool) ──────────────────────────────
     let pool = PgPoolOptions::new()
@@ -203,15 +202,14 @@ async fn main() -> anyhow::Result<()> {
         .route("/metrics", get(metrics::metrics_handler))
         // Shared state
         .with_state(state)
-        // Global middleware stack
-        .layer(
-            ServiceBuilder::new()
-                .layer(TraceLayer::new_for_http())
-                .layer(CompressionLayer::new())
-                .layer(TimeoutLayer::new(Duration::from_secs(30)))
-                .layer(RequestBodyLimitLayer::new(64 * 1024)) // 64KB max body
-                .layer(cors),
-        )
+        // Global middleware stack — applied outermost-first via chained .layer()
+        // tower-http 0.5 + axum 0.7: chained .layer() avoids the
+        // `ResponseBody<Body>: Default` bound that ServiceBuilder triggers.
+        .layer(TraceLayer::new_for_http())
+        .layer(CompressionLayer::new())
+        .layer(TimeoutLayer::new(Duration::from_secs(30)))
+        .layer(RequestBodyLimitLayer::new(64 * 1024)) // 64 KB max body
+        .layer(cors)
         // Fallback
         .fallback(|| async { (StatusCode::NOT_FOUND, Json(serde_json::json!({"error":"Not found"}))) });
 
