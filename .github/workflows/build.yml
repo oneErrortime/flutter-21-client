@@ -19,8 +19,6 @@ jobs:
   android:
     name: Android APK
     runs-on: ubuntu-latest
-    outputs:
-      apk-arm64: ${{ steps.paths.outputs.arm64 }}
 
     steps:
       - uses: actions/checkout@v4
@@ -50,8 +48,6 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      # Create a debug keystore for signing the test APK.
-      # For production: add KEYSTORE_B64 / KEY_ALIAS / KEY_PASSWORD secrets.
       - name: Create keystore
         run: |
           mkdir -p android/keystore
@@ -85,17 +81,10 @@ jobs:
       - name: flutter test
         run: flutter test --coverage || true
 
-      # ── Debug APK (quick feedback) ─────────────────────────────────────────
       - name: Build debug APK
         run: flutter build apk --debug --target-platform android-arm64
 
-      # ── Release APKs (split by ABI) ────────────────────────────────────────
       - name: Build release APKs
-        env:
-          KEYSTORE_PATH: keystore/release.jks
-          KEY_ALIAS: release
-          KEY_PASSWORD: cipass123
-          STORE_PASSWORD: cipass123
         run: |
           flutter build apk \
             --release \
@@ -104,16 +93,11 @@ jobs:
             --target-platform android-arm64,android-arm,android-x64 \
             --split-per-abi
 
-      # ── App Bundle (Play Store) ────────────────────────────────────────────
       - name: Build App Bundle
         run: flutter build appbundle --release --obfuscate --split-debug-info=build/debug-info || true
 
       - name: List APK outputs
         run: find build/app/outputs -name "*.apk" -o -name "*.aab" | sort
-
-      - id: paths
-        run: |
-          echo "arm64=$(ls build/app/outputs/flutter-apk/app-arm64-v8a-release.apk 2>/dev/null || echo '')" >> $GITHUB_OUTPUT
 
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
@@ -124,7 +108,6 @@ jobs:
             build/app/outputs/bundle/release/*.aab
           retention-days: 30
 
-      # ── GitHub Release on tag push ─────────────────────────────────────────
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
@@ -139,16 +122,14 @@ jobs:
 
 # ────────────────────────────────────────────────────────────────────────────
 # Flutter Web → GitHub Pages
-# Browser-based test client — no Android device needed
 # ────────────────────────────────────────────────────────────────────────────
   web:
     name: Flutter Web + GitHub Pages
     runs-on: ubuntu-latest
-    # Only deploy on main/master branch pushes and tags, not PRs
     if: github.event_name != 'pull_request'
 
     permissions:
-      contents: write   # needed for gh-pages deployment
+      contents: write
       pages: write
       id-token: write
 
@@ -166,83 +147,86 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Cache pub
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-web-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: pub-web-${{ runner.os }}-
+
       - name: flutter pub get
         run: flutter pub get
 
-      # ── Build Flutter web app ─────────────────────────────────────────────
+      # canvaskit renderer — consistent rendering cross-browser.
+      # Do NOT pass both FLUTTER_WEB_AUTO_DETECT=true and --web-renderer;
+      # they conflict. Use one approach: either auto-detect OR explicit renderer.
       - name: Build Flutter Web
         run: |
           flutter build web \
             --release \
             --web-renderer canvaskit \
-            --dart-define=FLUTTER_WEB_AUTO_DETECT=true \
+            --dart-define=FLUTTER_WEB_USE_SKIA=true \
             --base-href "/${{ github.event.repository.name }}/"
 
-      # ── Copy standalone WebRTC test client into web output ────────────────
       - name: Copy web test client
-        run: |
-          cp webclient/index.html build/web/webclient.html
+        run: cp webclient/index.html build/web/webclient.html
 
-      # ── Inject server URL config into both pages ──────────────────────────
       - name: Create server config
         run: |
           cat > build/web/config.js << 'JS'
-          // Auto-configured by CI. Edit these for your server.
           window.VOICECALL_CONFIG = {
             serverUrl: "wss://your-server.com/ws",
             apiBase:   "https://your-server.com",
           };
           JS
-
-          # Inject config.js into Flutter app
           sed -i 's|</head>|<script src="config.js"></script>\n</head>|' build/web/index.html || true
-
-          # Inject config.js into standalone test client
           sed -i 's|</head>|<script src="config.js"></script>\n</head>|' build/web/webclient.html || true
 
-      # ── Create Pages index showing both apps ──────────────────────────────
       - name: Create landing page
         run: |
           cat > build/web/landing.html << 'HTML'
           <!DOCTYPE html>
-          <html>
+          <html lang="en">
           <head>
           <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width,initial-scale=1">
           <title>VoiceCall — Test Builds</title>
           <style>
-            body { font-family: system-ui; background: #0d0d1a; color: #e0e0e0; margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-            .cards { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; padding: 24px; }
-            .card { background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 16px; padding: 32px; max-width: 300px; text-align: center; }
-            .card h2 { margin-bottom: 8px; }
-            .card p { color: #888; margin-bottom: 20px; font-size: 14px; }
-            a.btn { display: inline-block; padding: 10px 24px; background: #533483; color: white; border-radius: 8px; text-decoration: none; font-weight: 600; }
-            a.btn:hover { background: #6040a0; }
+            *{box-sizing:border-box;margin:0;padding:0}
+            body{font-family:system-ui,sans-serif;background:#0d0d1a;color:#e0e0e0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+            h1{font-size:1.8rem;margin-bottom:32px;color:#fff;text-align:center}
+            .cards{display:flex;gap:20px;flex-wrap:wrap;justify-content:center}
+            .card{background:#1a1a2e;border:1px solid #2a2a4a;border-radius:16px;padding:28px;max-width:280px;display:flex;flex-direction:column;gap:12px}
+            .card p{color:#888;font-size:13px;line-height:1.6;flex:1}
+            .card a{display:inline-block;padding:10px 22px;background:#533483;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;text-align:center}
+            .card a:hover{background:#6040a0}
           </style>
           </head>
           <body>
-          <div class="cards">
-            <div class="card">
-              <h2>⚡ Standalone Test Client</h2>
-              <p>Pure HTML/JS WebRTC test client. Works in any browser. No Flutter needed. Connect to your signaling server and test calls.</p>
-              <a class="btn" href="webclient.html">Open Test Client</a>
-            </div>
-            <div class="card">
-              <h2>📱 Flutter Web App</h2>
-              <p>Full Flutter web build of the VoiceCall app. Same codebase as Android. Requires WebRTC support (Chrome/Firefox/Safari).</p>
-              <a class="btn" href="index.html">Open Flutter App</a>
+          <div>
+            <h1>🔊 VoiceCall Test Builds</h1>
+            <div class="cards">
+              <div class="card">
+                <h2>⚡ Standalone Test Client</h2>
+                <p>Pure HTML/JS WebRTC test client. Works in any browser. No Flutter needed.</p>
+                <a href="webclient.html">Open Test Client</a>
+              </div>
+              <div class="card">
+                <h2>📱 Flutter Web App</h2>
+                <p>Full Flutter web build. Requires WebRTC (Chrome 80+, Firefox 75+, Safari 14+).</p>
+                <a href="index.html">Open Flutter App</a>
+              </div>
             </div>
           </div>
           </body>
           </html>
           HTML
 
-      # ── Upload Pages artifact ─────────────────────────────────────────────
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
 
-      # ── Deploy to GitHub Pages ────────────────────────────────────────────
       - name: Deploy to GitHub Pages
         id: pages
         uses: actions/deploy-pages@v4
@@ -250,20 +234,54 @@ jobs:
       - name: Print live URLs
         run: |
           BASE="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
-          echo "🌐 Landing page:   ${BASE}/landing.html"
-          echo "⚡ Test client:    ${BASE}/webclient.html"
-          echo "📱 Flutter web:    ${BASE}/"
+          echo "🌐 Landing : ${BASE}/landing.html"
+          echo "⚡ Test    : ${BASE}/webclient.html"
+          echo "📱 Flutter : ${BASE}/"
 
 # ────────────────────────────────────────────────────────────────────────────
 # Rust server — fmt / clippy / build / test / Docker
+#
+# Postgres + Redis service containers are required because sqlx::query!()
+# macros validate SQL against the live schema at compile time.
+# SQLX_OFFLINE=false means: use the live DB (most thorough checking).
 # ────────────────────────────────────────────────────────────────────────────
   rust:
     name: Rust Server
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: voicecall_ci
+          POSTGRES_USER: voicecall
+          POSTGRES_PASSWORD: cipassword
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     defaults:
       run:
         working-directory: server-rust
+
+    env:
+      DATABASE_URL: postgres://voicecall:cipassword@localhost:5432/voicecall_ci
+      REDIS_URL: redis://localhost:6379
+      SQLX_OFFLINE: "false"
 
     steps:
       - uses: actions/checkout@v4
@@ -278,8 +296,40 @@ jobs:
         with:
           workspaces: server-rust
 
+      # Bootstrap the schema so sqlx macros can verify column types
+      - name: Bootstrap database schema
+        run: |
+          sudo apt-get install -y --no-install-recommends postgresql-client 2>/dev/null
+          PGPASSWORD=cipassword psql \
+            -h localhost -U voicecall -d voicecall_ci << 'SQL'
+            CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+            CREATE TABLE IF NOT EXISTS users (
+              id            BIGSERIAL PRIMARY KEY,
+              user_id       UUID        NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+              username      VARCHAR(30) NOT NULL UNIQUE,
+              email         VARCHAR(255) NOT NULL UNIQUE,
+              display_name  VARCHAR(50) NOT NULL,
+              avatar_url    TEXT,
+              password_hash TEXT        NOT NULL,
+              is_active     BOOLEAN     NOT NULL DEFAULT true,
+              last_seen     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+              created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+              updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS rooms (
+              id          BIGSERIAL PRIMARY KEY,
+              room_id     UUID        NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+              created_by  UUID        NOT NULL REFERENCES users(user_id),
+              is_active   BOOLEAN     NOT NULL DEFAULT true,
+              expires_at  TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '24 hours',
+              created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+          SQL
+
       - name: cargo fmt --check
-        run: cargo fmt --all -- --check || (echo "::warning::cargo fmt check failed — run 'cargo fmt' locally" && true)
+        run: cargo fmt --all -- --check || (echo "::warning::Run 'cargo fmt' locally" && true)
 
       - name: cargo clippy
         run: cargo clippy --all-targets -- -D warnings || true
@@ -322,6 +372,8 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
+          build-args: |
+            SQLX_OFFLINE=true
 
 # ────────────────────────────────────────────────────────────────────────────
 # Node.js legacy server
