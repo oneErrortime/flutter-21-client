@@ -1,12 +1,31 @@
-plugins {
-    id "com.android.application"
-    id "kotlin-android"
-    // FlutterPlugin adds the flutter {} DSL and sets up JNI libs, assets, etc.
-    id "dev.flutter.flutter-gradle-plugin"
+// ── Flutter app/build.gradle ─────────────────────────────────────────────────
+//
+// Flutter 3.22 / AGP 8.x — imperative apply-from style.
+//
+// The Flutter Gradle plugin is NOT published to the Gradle Plugin Portal,
+// so the declarative `plugins { id "dev.flutter.flutter-gradle-plugin" }`
+// block WILL FAIL with "plugin not found in any repository".
+// The only correct approach is: apply from: "$flutterRoot/.../flutter.gradle"
+// ─────────────────────────────────────────────────────────────────────────────
+
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader -> localProperties.load(reader) }
 }
 
-// Load signing config from key.properties (generated in CI; not committed)
-def keyPropertiesFile = rootProject.file("key.properties")
+def flutterRoot = localProperties.getProperty('flutter.sdk')
+if (flutterRoot == null) {
+    throw new GradleException(
+        "Flutter SDK not found. Set flutter.sdk in android/local.properties.")
+}
+
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+// Flutter Gradle plugin MUST come after com.android.application
+apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
+
+def keyPropertiesFile = rootProject.file('key.properties')
 def keyProperties = new Properties()
 if (keyPropertiesFile.exists()) {
     keyProperties.load(new FileInputStream(keyPropertiesFile))
@@ -14,7 +33,7 @@ if (keyPropertiesFile.exists()) {
 
 android {
     namespace "com.voicecall"
-    compileSdk flutter.compileSdkVersion
+    compileSdkVersion flutter.compileSdkVersion
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -27,67 +46,60 @@ android {
     }
 
     sourceSets {
-        main.java.srcDirs += "src/main/kotlin"
+        main.java.srcDirs += 'src/main/kotlin'
     }
 
     defaultConfig {
         applicationId "com.voicecall"
-        // Minimum: 21 (Android 5.0) — required by flutter_webrtc
         minSdkVersion 21
         targetSdkVersion flutter.targetSdkVersion
-        versionCode flutter.versionCode
-        versionName flutter.versionName
-
-        // Keep Kotlin metadata for reflection used by some plugins
+        versionCode   flutter.versionCode
+        versionName   flutter.versionName
         multiDexEnabled true
     }
 
     signingConfigs {
         release {
-            keyAlias     keyProperties["keyAlias"]     ?: "release"
-            keyPassword  keyProperties["keyPassword"]  ?: ""
-            storeFile    keyProperties["storeFile"]    ? rootProject.file(keyProperties["storeFile"]) : null
-            storePassword keyProperties["storePassword"] ?: ""
+            keyAlias      keyProperties['keyAlias']      ?: 'release'
+            keyPassword   keyProperties['keyPassword']   ?: ''
+            storePassword keyProperties['storePassword'] ?: ''
+            storeFile     keyProperties['storeFile']
+                ? rootProject.file(keyProperties['storeFile']) : null
         }
     }
 
     buildTypes {
         debug {
-            // Debuggable by default; no signing config needed
             debuggable true
         }
         release {
             signingConfig signingConfigs.release
             minifyEnabled true
             shrinkResources true
-            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
+                          'proguard-rules.pro'
         }
     }
 
-    // Required for flutter_webrtc native libs (arm64, arm, x86_64)
     splits {
         abi {
             enable true
             reset()
-            include "arm64-v8a", "armeabi-v7a", "x86_64"
+            include 'arm64-v8a', 'armeabi-v7a', 'x86_64'
             universalApk false
         }
     }
 }
 
 flutter {
-    source "../.."
+    source '../..'
 }
 
 dependencies {
-    // Firebase BOM — pins all Firebase library versions in sync
-    implementation platform("com.google.firebase:firebase-bom:32.7.0")
-    implementation "com.google.firebase:firebase-messaging-ktx"
-    implementation "com.google.firebase:firebase-analytics-ktx"
-
-    // Kotlin stdlib
+    implementation platform('com.google.firebase:firebase-bom:32.7.0')
+    implementation 'com.google.firebase:firebase-messaging-ktx'
+    implementation 'com.google.firebase:firebase-analytics-ktx'
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
 }
 
-// Apply Google Services plugin last (required by Firebase)
-apply plugin: "com.google.gms.google-services"
+apply plugin: 'com.google.gms.google-services'
