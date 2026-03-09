@@ -216,11 +216,19 @@ jobs:
                 <p>Full Flutter web build. Requires WebRTC (Chrome 80+, Firefox 75+, Safari 14+).</p>
                 <a href="index.html">Open Flutter App</a>
               </div>
+              <div class="card">
+                <h2>📚 Documentation</h2>
+                <p>Architecture, API reference, security model, QUIC/Noise guide, deployment checklist.</p>
+                <a href="docs/">Open Docs</a>
+              </div>
             </div>
           </div>
           </body>
           </html>
           HTML
+
+      - name: Copy docs into web build
+        run: cp -r docs build/web/docs
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
@@ -237,6 +245,7 @@ jobs:
           echo "🌐 Landing : ${BASE}/landing.html"
           echo "⚡ Test    : ${BASE}/webclient.html"
           echo "📱 Flutter : ${BASE}/"
+          echo "📚 Docs    : ${BASE}/docs/"
 
 # ────────────────────────────────────────────────────────────────────────────
 # Rust server — fmt / clippy / build / test / Docker
@@ -295,6 +304,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: server-rust
+          key: ${{ hashFiles('server-rust/Cargo.lock') }}
 
       # Bootstrap the schema so sqlx macros can verify column types
       - name: Bootstrap database schema

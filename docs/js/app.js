@@ -111,9 +111,11 @@
     'WebSocket Protocol': 'Reference',
     'REST API': 'Reference',
     'Deployment': 'Reference',
+    'Improvements': 'Reference',
   };
 
   const BADGES = {
+    'Improvements': { text: 'NEW', cls: 'tag-new' },
     'QUIC Noise Architecture': { text: 'NEW', cls: 'tag-new' },
     'Security': { text: 'E2E', cls: 'tag-e2e' },
   };

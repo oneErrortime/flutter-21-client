@@ -97,13 +97,11 @@ pub async fn list_contacts(
         r#"
         SELECT
             u.user_id, u.username, u.display_name, u.avatar_url, u.last_seen,
-            c.created_at,
-            CASE WHEN r.user_id IS NOT NULL THEN true ELSE false END as "is_online!: bool"
+            c.created_at
         FROM contacts c
         JOIN users u ON (
             CASE WHEN c.requester_id = $1 THEN c.target_id ELSE c.requester_id END = u.user_id
         )
-        LEFT JOIN redis_online r ON r.user_id = u.user_id   -- conceptual; use Redis SET check
         WHERE (c.requester_id = $1 OR c.target_id = $1)
           AND c.status = 'accepted'
         ORDER BY u.display_name ASC
@@ -429,7 +427,7 @@ pub async fn get_user_by_handle(
             ) as "is_contact!: bool"
         FROM users u
         WHERE lower(u.username) = lower($1)
-          AND u.deleted_at IS NULL
+          AND u.is_active = true
         "#,
         handle,
         auth.user_id
