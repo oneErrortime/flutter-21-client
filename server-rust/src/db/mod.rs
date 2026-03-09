@@ -2,7 +2,7 @@ pub mod redis_store;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Row};
+use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::errors::AppError;
@@ -11,7 +11,7 @@ use crate::errors::AppError;
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct User {
-    pub id: Uuid,
+    pub id: i64,       // BIGSERIAL primary key
     pub user_id: Uuid,
     pub username: String,
     pub email: String,
@@ -47,7 +47,7 @@ impl From<User> for PublicUser {
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Room {
-    pub id: Uuid,
+    pub id: i64,       // BIGSERIAL primary key
     pub room_id: Uuid,
     pub created_by: Uuid,
     pub is_active: bool,
