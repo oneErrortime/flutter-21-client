@@ -1,3 +1,5 @@
+pub mod redis_store;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Row};
