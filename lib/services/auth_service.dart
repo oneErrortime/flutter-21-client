@@ -107,9 +107,15 @@ class AuthService extends ChangeNotifier {
   }
 
   String _extractError(dynamic e) {
+    // Dio wraps server responses — access .response.data directly
+    try {
+      final data = (e as dynamic).response?.data;
+      if (data is Map && data['error'] != null) {
+        return data['error'] as String;
+      }
+    } catch (_) {}
     if (e is Exception) {
       final str = e.toString();
-      // Try to extract server message
       final match = RegExp(r'"error":"([^"]+)"').firstMatch(str);
       if (match != null) return match.group(1)!;
     }

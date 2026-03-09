@@ -44,6 +44,7 @@ class WebRTCService extends ChangeNotifier {
     _signaling.on('room-joined', _onRoomJoined);
     _signaling.on('room-answered', _onRoomAnswered);
     _signaling.on('room-ice', _onRoomIce);
+    _signaling.on('room-hangup', _onHangup); // reuse same handler — ends the call
   }
 
   // ── OUTGOING CALL ──────────────────────────────────────────────────────────
@@ -295,7 +296,10 @@ class WebRTCService extends ChangeNotifier {
 
   // ── HANGUP ─────────────────────────────────────────────────────────────────
   void hangUp() {
-    if (_currentCall?.peer != null) {
+    if (_currentRoomId != null) {
+      // Room call: notify via room channel, both participants share the roomId
+      _signaling.sendRoomHangup(_currentRoomId!);
+    } else if (_currentCall?.peer != null) {
       _signaling.sendHangup(_currentCall!.peer!.userId);
     }
     _endCall();
@@ -431,6 +435,7 @@ class WebRTCService extends ChangeNotifier {
     _signaling.off('room-joined', _onRoomJoined);
     _signaling.off('room-answered', _onRoomAnswered);
     _signaling.off('room-ice', _onRoomIce);
+    _signaling.off('room-hangup', _onHangup);
   }
 }
 

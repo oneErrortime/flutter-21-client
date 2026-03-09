@@ -294,8 +294,7 @@ class _FingerprintBox extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E2E),
         borderRadius: BorderRadius.circular(6),
-        fontFamily: 'monospace',
-      ) as BoxDecoration,
+      ),
       child: Text(
         fingerprint,
         style: const TextStyle(

@@ -35,24 +35,39 @@ class ApiService {
             final code = error.response?.data['code'];
             if (code == 'TOKEN_EXPIRED') {
               if (_isRefreshing) {
-                // Queue the request for retry
-                _retryQueue.add(() => handler.resolve(
-                  Response(requestOptions: error.requestOptions)
-                ));
+                // Queue the request for retry after token refresh completes
+                _retryQueue.add(() async {
+                  try {
+                    final opts = error.requestOptions;
+                    final token = await SecureStorageService.getAccessToken();
+                    opts.headers['Authorization'] = 'Bearer $token';
+                    final response = await _dio.fetch(opts);
+                    handler.resolve(response);
+                  } catch (e) {
+                    handler.reject(error);
+                  }
+                });
                 return;
               }
               _isRefreshing = true;
               try {
                 await _refreshTokens();
+                _isRefreshing = false;
                 // Retry original request
                 final opts = error.requestOptions;
                 final token = await SecureStorageService.getAccessToken();
                 opts.headers['Authorization'] = 'Bearer $token';
                 final response = await _dio.fetch(opts);
                 handler.resolve(response);
+                // Drain queued requests that piled up during refresh
+                for (final retry in _retryQueue) {
+                  retry();
+                }
+                _retryQueue.clear();
               } catch (e) {
                 // Refresh failed, force logout
                 await SecureStorageService.clearAll();
+                _retryQueue.clear();
                 handler.reject(error);
               } finally {
                 _isRefreshing = false;

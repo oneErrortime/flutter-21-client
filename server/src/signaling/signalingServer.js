@@ -47,6 +47,7 @@ function createSignalingServer(wss) {
         return send(ws, { type: 'error', message: 'Invalid JSON' });
       }
 
+      try {
       // ── AUTH ──────────────────────────────────────────────────────────────
       if (msg.type === 'auth') {
         try {
@@ -232,7 +233,7 @@ function createSignalingServer(wss) {
         if (!roomId) return;
         let roomState = activeRooms.get(roomId);
         if (!roomState) {
-          activeRooms.set(roomId, { caller: ws, callee: null, offer: null });
+          activeRooms.set(roomId, { caller: ws, callee: null, offer: null, createdAt: Date.now() });
         } else {
           roomState.caller = ws;
           // If callee already waiting, notify creator
@@ -272,6 +273,19 @@ function createSignalingServer(wss) {
         return;
       }
 
+      // ── ROOM HANGUP ───────────────────────────────────────────────────────
+      if (msg.type === 'room-hangup') {
+        const { roomId } = msg;
+        const roomState = activeRooms.get(roomId);
+        if (roomState) {
+          // Notify the other participant
+          const other = roomState.caller === ws ? roomState.callee : roomState.caller;
+          if (other) send(other, { type: 'room-hangup', roomId });
+          activeRooms.delete(roomId);
+        }
+        return;
+      }
+
       // ── HEARTBEAT ─────────────────────────────────────────────────────────
       if (msg.type === 'heartbeat') {
         send(ws, { type: 'heartbeat-ack' });
@@ -279,6 +293,10 @@ function createSignalingServer(wss) {
       }
 
       send(ws, { type: 'error', message: `Unknown message type: ${msg.type}` });
+      } catch (err) {
+        logger.error('Message handler error:', err.message);
+        send(ws, { type: 'error', message: 'Internal server error' });
+      }
     });
 
     ws.on('close', () => {

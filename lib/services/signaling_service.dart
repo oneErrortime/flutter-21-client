@@ -26,6 +26,7 @@ class SignalingService extends ChangeNotifier {
   // ── Connect ────────────────────────────────────────────────────────────────
   Future<void> connect() async {
     if (_state != SignalingState.disconnected) return;
+    _reconnectAttempts = 0; // reset so reconnect works after intentional disconnect+reconnect
     _setState(SignalingState.connecting);
 
     try {
@@ -180,6 +181,10 @@ class SignalingService extends ChangeNotifier {
       'answer': answer,
       if (joinerId != null) 'joinerId': joinerId, // required by Rust server
     });
+  }
+
+  void sendRoomHangup(String roomId) {
+    _send({'type': 'room-hangup', 'roomId': roomId});
   }
 
   void sendRoomIce(String roomId, Map<String, dynamic> candidate, String role) {

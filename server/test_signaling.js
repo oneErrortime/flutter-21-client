@@ -425,6 +425,33 @@ async function runTests() {
     ws.terminate();
   });
 
+  await test('BUG FIXED: room-hangup notifies other participant', async () => {
+    const alice = await openWs(makeToken('user-alice'));
+    const bob   = await openWs(makeToken('user-bob'));
+
+    // 1. Create room properly
+    alice.send(JSON.stringify({ type: 'create-room' }));
+    const roomCreated = await waitFor(alice, 'room-created');
+    const roomId = roomCreated.roomId;
+
+    // 2. Alice hosts
+    alice.send(JSON.stringify({ type: 'room-host', roomId }));
+
+    // 3. Bob joins with offer
+    bob.send(JSON.stringify({ type: 'join-room', roomId, offer: { type: 'offer', sdp: 'sdp' } }));
+    await waitFor(alice, 'room-joined');
+
+    // 4. Alice hangs up
+    alice.send(JSON.stringify({ type: 'room-hangup', roomId }));
+
+    // 5. Bob should receive room-hangup
+    const msg = await waitFor(bob, 'room-hangup');
+    assert(msg, 'Bob did not receive room-hangup');
+
+    alice.terminate();
+    bob.terminate();
+  });
+
   // ── 5. Bug reproduction ───────────────────────────────────────────────────
   await test('BUG CHECK: Cannot call yourself', async () => {
     const alice = await openWs(makeToken('user-alice'));
