@@ -22,10 +22,10 @@ pub struct RedisStore {
 
 impl RedisStore {
     pub async fn new(url: &str) -> Result<Self, AppError> {
-        let client = Client::open(url).map_err(|e| AppError::Redis(e))?;
+        let client = Client::open(url).map_err(AppError::Redis)?;
         let conn = ConnectionManager::new(client)
             .await
-            .map_err(|e| AppError::Redis(e))?;
+            .map_err(AppError::Redis)?;
         Ok(Self { conn })
     }
 

@@ -34,6 +34,11 @@
 //!   c) Janus Gateway (C) — WebRTC gateway
 //!   d) webrtc-rs (Rust, alpha) — embed directly in this binary
 
+// This module is a planned WIP: the signaling coordination layer is complete
+// but requires an external media server (mediasoup/LiveKit/Janus) to be
+// wired up before the types and functions here are actively called.
+#![allow(dead_code)]
+
 use serde_json::{json, Value};
 use std::{collections::HashMap, sync::Arc, time::Instant};
 use tokio::sync::{Mutex, RwLock};

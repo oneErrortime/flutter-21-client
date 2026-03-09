@@ -48,5 +48,8 @@ fn extract_bearer(headers: &axum::http::HeaderMap) -> Option<&str> {
 #[derive(Clone, Debug)]
 pub struct AuthUser {
     pub user_id: Uuid,
+    // Pre-fetched to avoid an extra DB round-trip in handlers that need it.
+    // Not all handlers use it yet; suppress the warning until they do.
+    #[allow(dead_code)]
     pub display_name: String,
 }

@@ -178,6 +178,20 @@ async fn main() -> anyhow::Result<()> {
         .route("/:room_id", get(routes::get_room))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
+    let contact_routes = Router::new()
+        .route("/", get(routes::contacts::list_contacts))
+        .route("/pending", get(routes::contacts::pending_requests))
+        .route("/sent", get(routes::contacts::sent_requests))
+        .route("/request", post(routes::contacts::send_request))
+        .route("/accept", post(routes::contacts::accept_request))
+        .route("/decline", post(routes::contacts::decline_request))
+        .route("/remove", post(routes::contacts::remove_contact))
+        .route("/block", post(routes::contacts::block_user))
+        .route("/by-handle/:handle", get(routes::contacts::get_user_by_handle))
+        .route("/invite", post(routes::contacts::generate_invite_link))
+        .route("/invite/use", post(routes::contacts::use_invite_link))
+        .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
+
     let app = Router::new()
         // WebSocket signaling
         .route("/ws", get(ws_handler))
@@ -185,6 +199,7 @@ async fn main() -> anyhow::Result<()> {
         .nest("/api/auth", auth_routes)
         .nest("/api/users", user_routes)
         .nest("/api/rooms", room_routes)
+        .nest("/api/contacts", contact_routes)
         // Health check
         .route("/health", get(health_handler))
         // TURN credentials (served to authenticated clients)

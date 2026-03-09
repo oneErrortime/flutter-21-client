@@ -102,6 +102,7 @@ impl SignalingCrypto {
 
 /// Derive a 32-byte session key from a master key + unique info string
 /// Used for per-user or per-room derived keys
+#[allow(dead_code)]
 pub fn derive_key(master: &[u8], info: &[u8]) -> [u8; 32] {
     let hk = Hkdf::<Sha256>::new(None, master);
     let mut okm = [0u8; 32];
@@ -111,11 +112,13 @@ pub fn derive_key(master: &[u8], info: &[u8]) -> [u8; 32] {
 
 // ── Secure Random Tokens ──────────────────────────────────────────────────────
 
+#[allow(dead_code)]
 pub fn generate_token_id() -> String {
     let bytes: [u8; 32] = rand::thread_rng().gen();
     hex::encode(bytes)
 }
 
+#[allow(dead_code)]
 pub fn generate_room_id() -> String {
     uuid::Uuid::new_v4().to_string()
 }

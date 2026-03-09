@@ -19,7 +19,7 @@ use serde_json::{json, Value};
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
-use crate::{errors::AppError, AppState};
+use crate::{errors::AppError, routes::contacts::can_call, AppState};
 use super::hub::SignalingHub;
 
 pub async fn ws_handler(
@@ -167,6 +167,11 @@ async fn dispatch_message(
 
             if to == from {
                 return Err(AppError::BadRequest("Cannot call yourself".into()));
+            }
+            // Enforce contact-only calling: caller must be an accepted contact of callee
+            if !can_call(&state.db, &from, &to).await {
+                hub.send_to(&from, json!({"type":"call-rejected","reason":"not_contacts","targetId": to}).to_string()).await?;
+                return Ok(());
             }
             if !hub.is_connected(&to) {
                 hub.send_to(&from, json!({"type":"user-offline","targetId": to}).to_string()).await?;
