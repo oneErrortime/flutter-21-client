@@ -1,14 +1,14 @@
-/// Redis Session Store
-///
-/// Used for:
-/// 1. Refresh token storage (with TTL = refresh token expiry)
-///    Key: `rt:{user_id}:{jti}` → "1"
-/// 2. Online presence (which users are connected)
-///    Key: `online:{user_id}` → "1" (with TTL)
-/// 3. Rate limiting counters
-///    Key: `rl:{ip}:{endpoint}` → count
-/// 4. Call busy state
-///    Key: `busy:{user_id}` → call_id (with TTL)
+//! Redis Session Store
+//!
+//! Used for:
+//! 1. Refresh token storage (with TTL = refresh token expiry)
+//!    Key: `rt:{user_id}:{jti}` → "1"
+//! 2. Online presence (which users are connected)
+//!    Key: `online:{user_id}` → "1" (with TTL)
+//! 3. Rate limiting counters
+//!    Key: `rl:{ip}:{endpoint}` → count
+//! 4. Call busy state
+//!    Key: `busy:{user_id}` → call_id (with TTL)
 
 use redis::{aio::ConnectionManager, AsyncCommands, Client};
 use uuid::Uuid;
@@ -89,7 +89,7 @@ impl RedisStore {
             pipe.del(refresh_key(user_id, jti));
         }
         pipe.del(&list_key);
-        pipe.execute_async(&mut c).await.map_err(AppError::Redis)?;
+        pipe.query_async::<_, ()>(&mut c).await.map_err(AppError::Redis)?;
 
         Ok(())
     }
