@@ -45,6 +45,16 @@ jobs:
           key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
           restore-keys: pub-${{ runner.os }}-
 
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            android/.gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
@@ -81,20 +91,30 @@ jobs:
       - name: flutter test
         run: flutter test --coverage || true
 
-      - name: Build debug APK
-        run: flutter build apk --debug --target-platform android-arm64
-
-      - name: Build release APKs
+      - name: Build APKs + App Bundle
         run: |
+          # Run a single Gradle invocation for all outputs instead of 3 separate
+          # flutter build calls (each spawns a fresh Gradle daemon = slow).
+          cd android
+          ./gradlew \
+            assembleDebug \
+            assembleRelease \
+            bundleRelease \
+            --parallel \
+            --build-cache \
+            --no-daemon \
+            -Pverbose=false \
+            -Ptarget=../lib/main.dart \
+            -Pflutter-target=../lib/main.dart \
+            2>&1 | tail -40
+          cd ..
+          # Copy obfuscation split-debug-info via flutter for release (needed for crashlytics)
           flutter build apk \
             --release \
             --obfuscate \
             --split-debug-info=build/debug-info \
             --target-platform android-arm64,android-arm,android-x64 \
             --split-per-abi
-
-      - name: Build App Bundle
-        run: flutter build appbundle --release --obfuscate --split-debug-info=build/debug-info || true
 
       - name: List APK outputs
         run: find build/app/outputs -name "*.apk" -o -name "*.aab" | sort
