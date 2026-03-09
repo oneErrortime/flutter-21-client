@@ -33,8 +33,11 @@ dependencies:
   permission_handler: ^11.1.0
 
   # Push notifications (incoming calls when app is background)
-  firebase_core: ^2.24.2
-  firebase_messaging: ^14.7.9
+  # firebase_core ^3.x and firebase_messaging ^15.x use dart:js_interop
+  # instead of the old package:js interop (PromiseJsImpl / handleThenable /
+  # dartify) that broke dart2js compilation with Flutter 3.22 / Dart 3.
+  firebase_core: ^3.3.0
+  firebase_messaging: ^15.1.0
 
   # Local notifications (foreground call UI)
   flutter_local_notifications: ^16.2.0
