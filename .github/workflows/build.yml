@@ -91,30 +91,20 @@ jobs:
       - name: flutter test
         run: flutter test --coverage || true
 
-      - name: Build APKs + App Bundle
+      - name: Build debug APK
+        run: flutter build apk --debug --target-platform android-arm64
+
+      - name: Build release APKs
         run: |
-          # Run a single Gradle invocation for all outputs instead of 3 separate
-          # flutter build calls (each spawns a fresh Gradle daemon = slow).
-          cd android
-          ./gradlew \
-            assembleDebug \
-            assembleRelease \
-            bundleRelease \
-            --parallel \
-            --build-cache \
-            --no-daemon \
-            -Pverbose=false \
-            -Ptarget=../lib/main.dart \
-            -Pflutter-target=../lib/main.dart \
-            2>&1 | tail -40
-          cd ..
-          # Copy obfuscation split-debug-info via flutter for release (needed for crashlytics)
           flutter build apk \
             --release \
             --obfuscate \
             --split-debug-info=build/debug-info \
             --target-platform android-arm64,android-arm,android-x64 \
             --split-per-abi
+
+      - name: Build App Bundle
+        run: flutter build appbundle --release --obfuscate --split-debug-info=build/debug-info || true
 
       - name: List APK outputs
         run: find build/app/outputs -name "*.apk" -o -name "*.aab" | sort
