@@ -1,51 +1,78 @@
-/// Client-side AES-256-GCM decryption for signaling payloads
-/// Mirrors server-rust/src/crypto/mod.rs
+/// Client-side AES-256-GCM decryption for signaling payloads.
+/// Mirrors server-rust/src/crypto/mod.rs encryption scheme.
 ///
-/// The server encrypts SDP offers/answers and ICE candidates before forwarding.
-/// The client decrypts them before feeding to RTCPeerConnection.
+/// The Rust server encrypts SDP offers/answers and ICE candidates before
+/// forwarding them over the WebSocket. This prevents a compromised TLS
+/// termination proxy from reading call metadata in plaintext.
 ///
-/// Note: Both clients share the same server key — this protects against
-/// network-level attackers who somehow intercept TLS (e.g. misconfigured proxies).
-/// The key is fetched from the server at startup, not hardcoded.
+/// Wire format (from server): `<nonce_hex>:<ciphertext_hex>`
+/// where ciphertext_hex includes the 16-byte GCM auth tag appended.
+///
+/// Requires in pubspec.yaml:
+///   cryptography: ^2.7.0
 
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:crypto/crypto.dart';
+import 'package:convert/convert.dart';
+import 'package:cryptography/cryptography.dart';
 
-// For AES-GCM, we need PointyCastle or use the flutter_secure_storage + platform crypto
-// In practice, use the `cryptography` package for AES-256-GCM on Flutter:
-// cryptography: ^2.7.0 (add to pubspec.yaml)
-
-// Placeholder — in a real implementation use package:cryptography
-// This file shows the pattern; actual AES-GCM implementation needs cryptography package
 class SignalingCrypto {
   final Uint8List _key;
+  final AesGcm _algorithm = AesGcm.with256bits();
 
   SignalingCrypto(this._key);
 
-  /// Decrypt server-encrypted signaling payload
-  /// Format: `nonce_hex:ciphertext_hex`
+  /// Decrypt a server-encrypted signaling payload.
+  ///
+  /// Format: `nonce_hex:ciphertext_with_tag_hex`
+  /// Returns the original plaintext string.
+  /// Returns [encrypted] unchanged if it doesn't match the expected format,
+  /// so that plain-text messages (Node.js server path) work transparently.
   Future<String> decrypt(String encrypted) async {
-    final parts = encrypted.split(':');
-    if (parts.length != 2) return encrypted; // Not encrypted, pass through
+    final colonIdx = encrypted.indexOf(':');
+    if (colonIdx < 0) return encrypted; // Not encrypted, pass through
 
-    // TODO: Implement AES-256-GCM decryption using package:cryptography
-    // Example with package:cryptography:
-    //
-    // final algorithm = AesGcm.with256bits();
-    // final nonce = hex.decode(parts[0]);
-    // final ciphertext = hex.decode(parts[1]);
-    //
-    // final secretKey = await algorithm.newSecretKeyFromBytes(_key);
-    // final secretBox = SecretBox(
-    //   ciphertext.sublist(0, ciphertext.length - 16),
-    //   nonce: nonce,
-    //   mac: Mac(ciphertext.sublist(ciphertext.length - 16)),
-    // );
-    // final cleartext = await algorithm.decrypt(secretBox, secretKey: secretKey);
-    // return utf8.decode(cleartext);
+    try {
+      final nonceHex = encrypted.substring(0, colonIdx);
+      final ciphertextHex = encrypted.substring(colonIdx + 1);
 
-    // For now, return as-is (implement after adding cryptography package)
-    return encrypted;
+      final nonceBytes = Uint8List.fromList(hex.decode(nonceHex));
+      final ciphertextWithTag = Uint8List.fromList(hex.decode(ciphertextHex));
+
+      // GCM tag is the last 16 bytes
+      final ciphertext = ciphertextWithTag.sublist(0, ciphertextWithTag.length - 16);
+      final tag = ciphertextWithTag.sublist(ciphertextWithTag.length - 16);
+
+      final secretKey = await _algorithm.newSecretKeyFromBytes(_key);
+      final secretBox = SecretBox(
+        ciphertext,
+        nonce: nonceBytes,
+        mac: Mac(tag),
+      );
+
+      final cleartext = await _algorithm.decrypt(secretBox, secretKey: secretKey);
+      return utf8.decode(cleartext);
+    } catch (e) {
+      // Decryption failed (wrong key, corrupted payload, or not encrypted).
+      // Return as-is so the call can proceed with whatever data arrived.
+      return encrypted;
+    }
+  }
+
+  /// Encrypt a payload (useful if client→server E2E encryption is needed).
+  Future<String> encrypt(String plaintext) async {
+    final secretKey = await _algorithm.newSecretKeyFromBytes(_key);
+    final secretBox = await _algorithm.encrypt(
+      utf8.encode(plaintext),
+      secretKey: secretKey,
+    );
+
+    final nonce = secretBox.nonce;
+    final ciphertextWithTag = Uint8List.fromList([
+      ...secretBox.cipherText,
+      ...secretBox.mac.bytes,
+    ]);
+
+    return '${hex.encode(nonce)}:${hex.encode(ciphertextWithTag)}';
   }
 }

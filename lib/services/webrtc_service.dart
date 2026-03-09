@@ -248,7 +248,13 @@ class WebRTCService extends ChangeNotifier {
     final offer = msg['offer'] as Map<String, dynamic>;
     _remoteFingerprint = _extractFingerprint(offer['sdp'] as String);
 
-    await _initPeerConnection(isCaller: false, peerId: _currentRoomId ?? '');
+    // FIX: extract roomId and joinerId from the message — _currentRoomId is null
+    // on the host side because hostRoomCall() doesn't set it.
+    final roomId = msg['roomId'] as String? ?? _currentCall?.callId ?? '';
+    _currentRoomId = roomId;
+    final joinerId = msg['joinerId'] as String?;
+
+    await _initPeerConnection(isCaller: false, peerId: roomId);
     await _getLocalAudio();
     await _peerConnection!.setRemoteDescription(
       RTCSessionDescription(offer['sdp'] as String, offer['type'] as String),
@@ -256,7 +262,11 @@ class WebRTCService extends ChangeNotifier {
 
     final answer = await _peerConnection!.createAnswer({});
     await _peerConnection!.setLocalDescription(answer);
-    _signaling.sendRoomAnswer(_currentRoomId!, {'type': answer.type, 'sdp': answer.sdp});
+    _signaling.sendRoomAnswer(
+      roomId,
+      {'type': answer.type, 'sdp': answer.sdp},
+      joinerId: joinerId,  // FIX: pass joinerId for Rust server routing
+    );
   }
 
   Future<void> _onRoomAnswered(Map<String, dynamic> msg) async {

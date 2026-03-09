@@ -18,11 +18,12 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.6.3",
     "uuid": "^9.0.0",
-    "winston": "^3.11.0",
-    "ws": "^8.14.2"
+    "winston": "^3.11.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "axios": "^1.13.6",
+    "nodemon": "^3.0.1",
+    "ws": "^8.19.0"
   },
   "engines": {
     "node": ">=18.0.0"

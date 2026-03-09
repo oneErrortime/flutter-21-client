@@ -285,11 +285,21 @@ async fn dispatch_message(
 
             let joiner_info = state.db.find_user_by_id(&from).await?.map(|u| u.display_name).unwrap_or_default();
 
+            // FIX: Store joiner ID in Redis so room-ice can route back to them
+            let mut conn = state.redis.conn.clone();
+            let joiner_key = format!("room_joiner:{room_id_str}");
+            let _ = redis::cmd("SETEX")
+                .arg(&joiner_key)
+                .arg(86400u64)
+                .arg(from.to_string())
+                .query_async::<()>(&mut conn)
+                .await;
+
             // Notify host
             hub.send_to(&room.created_by, json!({
                 "type": "room-joined",
                 "offer": encrypted_offer,
-                "joinerId": from,
+                "joinerId": from,  // FIX: pass joinerId so host can include it in room-answer
                 "joinerName": joiner_info,
                 "roomId": room_id_str
             }).to_string()).await?;
@@ -299,9 +309,25 @@ async fn dispatch_message(
         "room-answer" => {
             let room_id_str = msg.get("roomId").and_then(Value::as_str)
                 .ok_or(AppError::BadRequest("Missing roomId".into()))?;
-            let joiner_id = parse_uuid(msg, "joinerId")?;
             let answer = require_field(msg, "answer")?;
             let encrypted_answer = state.crypto.encrypt(&answer.to_string())?;
+
+            // FIX: Flutter now sends joinerId in room-answer (fixed on client side).
+            // Fallback: look up joiner from Redis if joinerId missing (backward compat).
+            let joiner_id = if let Some(jid_str) = msg.get("joinerId").and_then(Value::as_str) {
+                Uuid::parse_str(jid_str)
+                    .map_err(|_| AppError::BadRequest("Invalid joinerId".into()))?
+            } else {
+                let mut conn = state.redis.conn.clone();
+                let joiner_key = format!("room_joiner:{room_id_str}");
+                let jid_str: String = redis::cmd("GET")
+                    .arg(&joiner_key)
+                    .query_async(&mut conn)
+                    .await
+                    .map_err(|_| AppError::NotFound("Joiner not found for room".into()))?;
+                Uuid::parse_str(&jid_str)
+                    .map_err(|_| AppError::Internal(anyhow::anyhow!("Invalid stored joiner id")))?
+            };
 
             hub.send_to(&joiner_id, json!({
                 "type": "room-answered",
@@ -312,14 +338,45 @@ async fn dispatch_message(
 
         // ── ROOM: ICE ────────────────────────────────────────────────────────
         "room-ice" => {
-            let to = parse_uuid(msg, "to")?;
+            // FIX: Flutter sends 'roomId', not 'to'
+            let room_id_str = msg.get("roomId").and_then(Value::as_str)
+                .ok_or(AppError::BadRequest("Missing roomId".into()))?;
+            let room_id = Uuid::parse_str(room_id_str)
+                .map_err(|_| AppError::BadRequest("Invalid roomId".into()))?;
+            let role = msg.get("role").and_then(Value::as_str).unwrap_or("caller");
             let candidate = require_field(msg, "candidate")?;
             let encrypted = state.crypto.encrypt(&candidate.to_string())?;
-            hub.send_to(&to, json!({
-                "type": "room-ice",
-                "candidate": encrypted,
-                "from": from
-            }).to_string()).await?;
+
+            // Route based on role: 'caller' sent by host → forward to joiner, and vice versa
+            // Lookup room to find the other participant
+            let room = state.db.find_room(&room_id).await?
+                .ok_or(AppError::NotFound("Room not found".into()))?;
+
+            // The host is room.created_by; joiner is the other party
+            // Role indicates who sent this ICE candidate (their position in the call)
+            let mut conn = state.redis.conn.clone();
+            let joiner_key = format!("room_joiner:{room_id_str}");
+            let joiner_id_str: Option<String> = redis::cmd("GET")
+                .arg(&joiner_key)
+                .query_async(&mut conn)
+                .await
+                .ok();
+
+            let target = if role == "caller" {
+                // host sent → forward to joiner
+                joiner_id_str.and_then(|s| Uuid::parse_str(&s).ok())
+            } else {
+                // joiner sent → forward to host
+                Some(room.created_by)
+            };
+
+            if let Some(target_id) = target {
+                hub.send_to(&target_id, json!({
+                    "type": "room-ice",
+                    "candidate": encrypted,
+                    "from": from
+                }).to_string()).await?;
+            }
         }
 
         // ── HEARTBEAT ────────────────────────────────────────────────────────

@@ -50,6 +50,9 @@ dependencies:
   # Crypto helpers (fingerprint display for key verification)
   crypto: ^3.0.3
 
+  # AES-256-GCM for signaling payload decryption
+  cryptography: ^2.7.0
+
   # Haptic feedback
   vibration: ^1.8.4
 

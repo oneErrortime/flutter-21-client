@@ -173,8 +173,13 @@ class SignalingService extends ChangeNotifier {
     _send({'type': 'room-host', 'roomId': roomId});
   }
 
-  void sendRoomAnswer(String roomId, Map<String, dynamic> answer) {
-    _send({'type': 'room-answer', 'roomId': roomId, 'answer': answer});
+  void sendRoomAnswer(String roomId, Map<String, dynamic> answer, {String? joinerId}) {
+    _send({
+      'type': 'room-answer',
+      'roomId': roomId,
+      'answer': answer,
+      if (joinerId != null) 'joinerId': joinerId, // required by Rust server
+    });
   }
 
   void sendRoomIce(String roomId, Map<String, dynamic> candidate, String role) {
