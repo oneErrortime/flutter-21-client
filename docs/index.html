@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VoiceCall — P2P E2E Encrypted Voice Calls</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0e1117;
+      --bg2:       #161b22;
+      --bg3:       #1c2128;
+      --bg4:       #21262d;
+      --border:    #30363d;
+      --accent:    #58a6ff;
+      --accent2:   #1f6feb;
+      --accent-dim:rgba(88,166,255,.12);
+      --green:     #3fb950;
+      --green-dim: rgba(63,185,80,.12);
+      --orange:    #d29922;
+      --red:       #f85149;
+      --purple:    #bc8cff;
+      --text:      #e6edf3;
+      --text-mid:  #8b949e;
+      --text-dim:  #484f58;
+      --mono:      'IBM Plex Mono', monospace;
+      --sans:      'Inter', sans-serif;
+      --sidebar-w: 272px;
+      --nav-h:     60px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+
+    /* ── Top Nav ── */
+    .topnav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      height: var(--nav-h);
+      display: flex; align-items: center; gap: 16px;
+      padding: 0 24px;
+      background: rgba(14,17,23,.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-family: var(--mono); font-size: 15px; font-weight: 600;
+      color: var(--text); text-decoration: none; white-space: nowrap;
+    }
+    .nav-logo .icon { font-size: 20px; }
+    .nav-logo .accent { color: var(--accent); }
+    .nav-spacer { flex: 1; }
+    .nav-links { display: flex; align-items: center; gap: 4px; }
+    .nav-links a {
+      color: var(--text-mid); text-decoration: none;
+      font-size: 13px; font-weight: 500;
+      padding: 6px 12px; border-radius: 6px;
+      transition: color .15s, background .15s;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .nav-links a:hover { color: var(--text); background: var(--bg4); }
+    .nav-badge {
+      background: var(--green-dim); color: var(--green);
+      font-family: var(--mono); font-size: 11px; font-weight: 600;
+      padding: 2px 8px; border-radius: 12px;
+      border: 1px solid rgba(63,185,80,.25);
+    }
+
+    /* ── Layout ── */
+    .layout {
+      display: flex;
+      margin-top: var(--nav-h);
+      min-height: calc(100vh - var(--nav-h));
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      position: fixed;
+      top: var(--nav-h); bottom: 0; left: 0;
+      overflow-y: auto;
+      padding: 24px 16px 48px;
+      border-right: 1px solid var(--border);
+      background: var(--bg);
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .sidebar-section { margin-bottom: 24px; }
+    .sidebar-label {
+      font-size: 11px; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--text-dim);
+      padding: 0 8px; margin-bottom: 6px;
+    }
+    .sidebar a {
+      display: block; padding: 6px 10px;
+      color: var(--text-mid); text-decoration: none;
+      font-size: 13.5px; border-radius: 6px;
+      transition: color .15s, background .15s;
+      border-left: 2px solid transparent;
+    }
+    .sidebar a:hover { color: var(--text); background: var(--bg4); }
+    .sidebar a.active {
+      color: var(--accent);
+      background: var(--accent-dim);
+      border-left-color: var(--accent);
+    }
+    .sidebar a .tag {
+      float: right;
+      font-size: 10px; font-weight: 600; font-family: var(--mono);
+      padding: 1px 5px; border-radius: 4px;
+      margin-top: 2px;
+    }
+    .tag-new { background: var(--green-dim); color: var(--green); border: 1px solid rgba(63,185,80,.2); }
+    .tag-e2e { background: rgba(188,140,255,.12); color: var(--purple); border: 1px solid rgba(188,140,255,.2); }
+
+    /* ── Content ── */
+    .content {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      max-width: 860px;
+      padding: 48px 56px 120px;
+    }
+
+    /* ── Sections ── */
+    .doc-section { margin-bottom: 72px; scroll-margin-top: calc(var(--nav-h) + 24px); }
+
+    h1 {
+      font-size: 32px; font-weight: 700; line-height: 1.25;
+      letter-spacing: -.02em; margin-bottom: 16px;
+    }
+    h1 .sub { display: block; font-size: 17px; font-weight: 400; color: var(--text-mid); margin-top: 8px; letter-spacing: 0; }
+    h2 {
+      font-size: 22px; font-weight: 600; line-height: 1.3;
+      margin-bottom: 16px; margin-top: 40px;
+      padding-bottom: 10px; border-bottom: 1px solid var(--border);
+      letter-spacing: -.01em;
+    }
+    h3 {
+      font-size: 16px; font-weight: 600;
+      margin-bottom: 10px; margin-top: 28px;
+      color: var(--text);
+    }
+    p { color: var(--text-mid); margin-bottom: 16px; line-height: 1.75; }
+    p strong { color: var(--text); font-weight: 600; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Hero ── */
+    .hero { padding-bottom: 40px; border-bottom: 1px solid var(--border); margin-bottom: 48px; }
+    .hero-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-family: var(--mono); font-size: 12px; font-weight: 500;
+      padding: 4px 10px; border-radius: 6px;
+      border: 1px solid;
+    }
+    .badge-blue { background: var(--accent-dim); color: var(--accent); border-color: rgba(88,166,255,.25); }
+    .badge-green { background: var(--green-dim); color: var(--green); border-color: rgba(63,185,80,.25); }
+    .badge-purple { background: rgba(188,140,255,.1); color: var(--purple); border-color: rgba(188,140,255,.2); }
+    .badge-orange { background: rgba(210,153,34,.1); color: var(--orange); border-color: rgba(210,153,34,.2); }
+
+    .hero-desc {
+      font-size: 16px; color: var(--text-mid); max-width: 640px; line-height: 1.8;
+      margin-bottom: 28px;
+    }
+
+    /* ── Arch diagram ── */
+    .arch {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px;
+      margin: 24px 0;
+      overflow-x: auto;
+    }
+    .arch pre {
+      font-family: var(--mono); font-size: 12.5px;
+      color: var(--text-mid); white-space: pre; line-height: 1.6;
+    }
+    .arch-label {
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .08em; color: var(--text-dim); margin-bottom: 12px;
+    }
+
+    /* ── Code ── */
+    pre, code {
+      font-family: var(--mono);
+    }
+    code {
+      font-size: 13px;
+      background: var(--bg3);
+      color: #79c0ff;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+    .codeblock {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin: 20px 0;
+      overflow: hidden;
+    }
+    .codeblock-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg3);
+    }
+    .codeblock-lang {
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .07em; color: var(--text-dim);
+    }
+    .codeblock-copy {
+      font-size: 11px; color: var(--text-dim);
+      cursor: pointer; padding: 2px 8px;
+      border: 1px solid var(--border); border-radius: 4px;
+      background: transparent; font-family: var(--sans);
+      transition: color .15s, border-color .15s;
+    }
+    .codeblock-copy:hover { color: var(--text); border-color: var(--text-mid); }
+    .codeblock pre {
+      padding: 18px 20px;
+      overflow-x: auto;
+      font-size: 13.5px;
+      line-height: 1.65;
+      white-space: pre;
+    }
+    /* syntax colors */
+    .k { color: #ff7b72; }   /* keyword */
+    .s { color: #a5d6ff; }   /* string */
+    .c { color: #8b949e; }   /* comment */
+    .n { color: #d2a8ff; }   /* function/type */
+    .p { color: var(--text); } /* punctuation/default */
+    .v { color: #79c0ff; }   /* variable */
+    .num { color: #f0883e; } /* number */
+    .env { color: #3fb950; } /* env var/important */
+
+    /* ── Tables ── */
+    .table-wrap { overflow-x: auto; margin: 20px 0; }
+    table {
+      width: 100%; border-collapse: collapse;
+      font-size: 13.5px;
+    }
+    thead tr { background: var(--bg3); }
+    th {
+      text-align: left; padding: 10px 14px;
+      font-size: 11px; font-weight: 700; letter-spacing: .07em;
+      text-transform: uppercase; color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-mid);
+      vertical-align: top;
+    }
+    td code { font-size: 12px; }
+    tr:hover td { background: var(--bg2); }
+    td:first-child code { color: var(--green); }
+
+    /* ── Callouts ── */
+    .callout {
+      display: flex; gap: 12px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      margin: 20px 0;
+      border: 1px solid;
+    }
+    .callout-info { background: var(--accent-dim); border-color: rgba(88,166,255,.25); }
+    .callout-warn { background: rgba(210,153,34,.1); border-color: rgba(210,153,34,.25); }
+    .callout-safe { background: var(--green-dim); border-color: rgba(63,185,80,.25); }
+    .callout-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+    .callout-body { font-size: 13.5px; line-height: 1.7; }
+    .callout-info .callout-body { color: #79c0ff; }
+    .callout-warn .callout-body { color: #e3b341; }
+    .callout-safe .callout-body { color: var(--green); }
+    .callout-body strong { font-weight: 600; display: block; margin-bottom: 3px; }
+
+    /* ── Feature grid ── */
+    .feat-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px; margin: 24px 0;
+    }
+    .feat-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 16px;
+      transition: border-color .15s;
+    }
+    .feat-card:hover { border-color: var(--accent); }
+    .feat-icon { font-size: 22px; margin-bottom: 8px; }
+    .feat-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .feat-desc { font-size: 12px; color: var(--text-mid); line-height: 1.5; }
+
+    /* ── WS message table ── */
+    .ws-dir { font-family: var(--mono); font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 4px; }
+    .ws-out { background: rgba(88,166,255,.12); color: var(--accent); }
+    .ws-in { background: var(--green-dim); color: var(--green); }
+
+    /* ── Checklist ── */
+    .checklist { list-style: none; margin: 16px 0; }
+    .checklist li {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 7px 0; color: var(--text-mid);
+      font-size: 14px; border-bottom: 1px solid var(--border);
+    }
+    .checklist li:last-child { border: none; }
+    .checklist .chk { color: var(--green); font-weight: 700; flex-shrink: 0; margin-top: 2px; }
+    .checklist .chk-empty { color: var(--text-dim); flex-shrink: 0; margin-top: 2px; }
+
+    /* ── RFC pills ── */
+    .rfc-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+    .rfc {
+      font-family: var(--mono); font-size: 12px; font-weight: 500;
+      padding: 4px 10px; border-radius: 6px;
+      background: rgba(188,140,255,.1); color: var(--purple);
+      border: 1px solid rgba(188,140,255,.2);
+    }
+
+    /* ── Mobile ── */
+    .menu-btn {
+      display: none; background: none; border: none;
+      color: var(--text); cursor: pointer; padding: 4px;
+      font-size: 20px;
+    }
+    @media (max-width: 900px) {
+      .sidebar { transform: translateX(-100%); transition: transform .25s; z-index: 150; }
+      .sidebar.open { transform: none; }
+      .content { margin-left: 0; padding: 32px 24px 80px; }
+      .menu-btn { display: block; }
+      .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 140; }
+      .overlay.open { display: block; }
+    }
+    @media (max-width: 600px) {
+      h1 { font-size: 26px; }
+      .content { padding: 24px 16px 80px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Top Nav -->
+<nav class="topnav">
+  <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+  <a href="#" class="nav-logo">
+    <span class="icon">📞</span>
+    <span>voice<span class="accent">call</span></span>
+  </a>
+  <div class="nav-spacer"></div>
+  <div class="nav-links">
+    <a href="#quick-start">Get Started</a>
+    <a href="#api">API</a>
+    <a href="https://github.com/oneErrortime/flutter-21-client" target="_blank">
+      GitHub
+    </a>
+    <a href="#" style="background:var(--accent2);color:#fff;border-radius:6px;padding:6px 14px;font-weight:600;">
+      Download APK
+    </a>
+  </div>
+</nav>
+<div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+<!-- Layout -->
+<div class="layout">
+
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Introduction</div>
+    <a href="#overview" class="active">Overview</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#rfcs">RFCs & Standards</a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Getting Started</div>
+    <a href="#quick-start">Quick Start — Server</a>
+    <a href="#flutter-start">Quick Start — Flutter</a>
+    <a href="#emulation">Device Emulation</a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Core Concepts</div>
+    <a href="#webrtc">WebRTC & P2P</a>
+    <a href="#security">Security <span class="tag tag-e2e">E2E</span></a>
+    <a href="#turn">TURN Server</a>
+    <a href="#deeplinks">Deep Links</a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Reference</div>
+    <a href="#ws-protocol">WebSocket Protocol</a>
+    <a href="#api">REST API</a>
+    <a href="#project-structure">Project Structure</a>
+    <a href="#deployment">Deployment Checklist</a>
+  </div>
+
+</aside>
+
+<!-- Content -->
+<main class="content">
+
+  <!-- OVERVIEW -->
+  <section class="doc-section" id="overview">
+    <div class="hero">
+      <div class="hero-badges">
+        <span class="badge badge-blue">Flutter 3.13+</span>
+        <span class="badge badge-green">WebRTC P2P</span>
+        <span class="badge badge-purple">DTLS-SRTP E2E</span>
+        <span class="badge badge-orange">Node.js · Rust</span>
+      </div>
+      <h1>VoiceCall
+        <span class="sub">Production-ready P2P voice calls with end-to-end encryption</span>
+      </h1>
+      <p class="hero-desc">
+        A complete Android voice call application built on <strong>WebRTC</strong> with
+        <strong>DTLS-SRTP</strong> end-to-end encryption. The signaling server never touches
+        your audio — all media flows peer-to-peer, fully encrypted.
+      </p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <a href="#quick-start" style="display:inline-flex;align-items:center;gap:8px;background:var(--accent2);color:#fff;padding:10px 20px;border-radius:8px;font-weight:600;font-size:14px;text-decoration:none;">
+          Get Started →
+        </a>
+        <a href="https://github.com/oneErrortime/flutter-21-client" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:var(--bg3);color:var(--text);padding:10px 20px;border-radius:8px;font-weight:600;font-size:14px;border:1px solid var(--border);text-decoration:none;">
+          View on GitHub
+        </a>
+      </div>
+    </div>
+
+    <h2>What is VoiceCall?</h2>
+    <p>VoiceCall is a <strong>Flutter Android app</strong> paired with a <strong>Node.js signaling server</strong> (and an alternative Rust server) that enables direct peer-to-peer voice communication. The server only brokers the connection setup — once established, audio travels directly between devices, encrypted with DTLS-SRTP.</p>
+
+    <div class="feat-grid">
+      <div class="feat-card">
+        <div class="feat-icon">🔒</div>
+        <div class="feat-title">End-to-End Encrypted</div>
+        <div class="feat-desc">DTLS-SRTP (RFC 5764) — the server cannot decrypt your calls</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">⚡</div>
+        <div class="feat-title">P2P Direct</div>
+        <div class="feat-desc">ICE/STUN traversal — audio bypasses the server entirely</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">🔄</div>
+        <div class="feat-title">TURN Fallback</div>
+        <div class="feat-desc">Relay mode for corporate NAT / symmetric firewalls</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">🔑</div>
+        <div class="feat-title">JWT Auth</div>
+        <div class="feat-desc">Access tokens + rotating refresh tokens with reuse detection</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">🔗</div>
+        <div class="feat-title">Deep Links</div>
+        <div class="feat-desc">Share room links — <code>voicecall://join/ROOM</code></div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">🦀</div>
+        <div class="feat-title">Rust Server</div>
+        <div class="feat-desc">Alternative high-performance Rust signaling backend</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ARCHITECTURE -->
+  <section class="doc-section" id="architecture">
+    <h2>Architecture</h2>
+    <p>VoiceCall uses a classic WebRTC architecture: a lightweight signaling server handles connection negotiation, while all audio flows <strong>directly peer-to-peer</strong>.</p>
+
+    <div class="arch">
+      <div class="arch-label">System Diagram</div>
+      <pre>
+┌──────────────┐         WSS/HTTPS          ┌─────────────────────┐
+│ Android App  │ ◄──────────────────────── ► │  Signaling Server   │
+│  (Flutter)   │     JWT-authenticated       │  (Node.js + WS)     │
+└──────┬───────┘         WebSocket          └────────┬────────────┘
+       │                                              │ MongoDB
+       │         Direct P2P (ICE/STUN/TURN)           │
+       └──────────────────────────────────────────────┘
+                  DTLS-SRTP encrypted audio
+      </pre>
+    </div>
+
+    <h3>Two calling modes</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Mode</th><th>How it works</th><th>When to use</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>P2P (STUN)</code></td>
+            <td>Direct connection via STUN NAT traversal</td>
+            <td>Same network / simple NAT</td>
+          </tr>
+          <tr>
+            <td><code>P2P (TURN relay)</code></td>
+            <td>Audio relayed via TURN server</td>
+            <td>Symmetric NAT / corporate firewalls</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div class="callout-body">
+        <strong>The server never handles audio.</strong>
+        It only brokers the WebRTC handshake (SDP offer/answer and ICE candidates). Once the P2P connection is established, the signaling server is out of the loop entirely.
+      </div>
+    </div>
+  </section>
+
+  <!-- RFCS -->
+  <section class="doc-section" id="rfcs">
+    <h2>RFCs & Standards</h2>
+    <p>VoiceCall implements and builds on the following open standards:</p>
+    <div class="rfc-list">
+      <span class="rfc">RFC 8825 — WebRTC</span>
+      <span class="rfc">RFC 8829 — JSEP</span>
+      <span class="rfc">RFC 8445 — ICE</span>
+      <span class="rfc">RFC 5389 — STUN</span>
+      <span class="rfc">RFC 8656 — TURN</span>
+      <span class="rfc">RFC 5764 — DTLS-SRTP</span>
+      <span class="rfc">RFC 4566 — SDP</span>
+      <span class="rfc">RFC 7519 — JWT</span>
+      <span class="rfc">RFC 6749 — OAuth2</span>
+    </div>
+  </section>
+
+  <!-- QUICK START SERVER -->
+  <section class="doc-section" id="quick-start">
+    <h2>Quick Start — Server</h2>
+
+    <h3>Prerequisites</h3>
+    <ul style="color:var(--text-mid);padding-left:20px;line-height:2;">
+      <li>Node.js 18+</li>
+      <li>MongoDB (local or <a href="https://www.mongodb.com/atlas" target="_blank">Atlas free tier</a>)</li>
+      <li>Docker + Docker Compose (optional)</li>
+    </ul>
+
+    <h3>Option A — Local development</h3>
+    <div class="codeblock">
+      <div class="codeblock-header">
+        <span class="codeblock-lang">bash</span>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="k">cd</span> server
+<span class="k">cp</span> .env.example .env
+<span class="c"># Edit .env — set MONGODB_URI and JWT secrets</span>
+
+<span class="k">npm</span> install
+<span class="k">npm</span> run dev</pre>
+    </div>
+    <p>Server starts at <code>http://localhost:3000</code>. WebSocket at <code>ws://localhost:3000/ws</code>.</p>
+
+    <h3>Option B — Docker (recommended for production)</h3>
+    <div class="codeblock">
+      <div class="codeblock-header">
+        <span class="codeblock-lang">bash</span>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="k">cd</span> server
+<span class="k">cp</span> .env.example .env
+<span class="c"># Edit .env — strong JWT secrets, MongoDB URI, TURN credentials</span>
+
+<span class="k">docker-compose</span> up -d</pre>
+    </div>
+
+    <h3>Generate JWT secrets</h3>
+    <div class="codeblock">
+      <div class="codeblock-header">
+        <span class="codeblock-lang">bash</span>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="c"># Generate two separate secrets</span>
+<span class="k">openssl</span> rand -hex <span class="num">64</span>  <span class="c"># JWT_ACCESS_SECRET</span>
+<span class="k">openssl</span> rand -hex <span class="num">64</span>  <span class="c"># JWT_REFRESH_SECRET</span></pre>
+    </div>
+  </section>
+
+  <!-- FLUTTER START -->
+  <section class="doc-section" id="flutter-start">
+    <h2>Quick Start — Flutter</h2>
+
+    <h3>1. Configure server URL</h3>
+    <p>Edit <code>lib/core/constants.dart</code>:</p>
+    <div class="codeblock">
+      <div class="codeblock-header">
+        <span class="codeblock-lang">dart</span>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="c">// Android emulator → your machine's localhost</span>
+<span class="k">static const</span> <span class="n">String</span> baseUrl = <span class="s">'http://10.0.2.2:3000'</span>;
+<span class="k">static const</span> <span class="n">String</span> wsUrl   = <span class="s">'ws://10.0.2.2:3000/ws'</span>;
+
+<span class="c">// Physical device on the same WiFi</span>
+<span class="c">// static const String baseUrl = 'http://192.168.1.x:3000';</span>
+
+<span class="c">// Production</span>
+<span class="c">// static const String baseUrl = 'https://yourapp.com';</span>
+<span class="c">// static const String wsUrl   = 'wss://yourapp.com/ws';</span></pre>
+    </div>
+
+    <h3>2. Install dependencies & run</h3>
+    <div class="codeblock">
+      <div class="codeblock-header">
+        <span class="codeblock-lang">bash</span>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="k">flutter</span> pub get
+<span class="k">flutter</span> run</pre>
+    </div>
+  </section>
+
+  <!-- EMULATION -->
+  <section class="doc-section" id="emulation">
+    <h2>Device Emulation</h2>
+    <p>Four ways to test the app — from safest to most hands-on.</p>
+
+    <h3>Option A — Android Studio Emulator (recommended)</h3>
+    <div class="callout callout-safe">
+      <span class="callout-icon">✅</span>
+      <div class="callout-body"><strong>100% safe — your real phone is never involved.</strong> Runs in a virtual machine on your PC.</div>
+    </div>
+    <div class="codeblock">
+      <div class="codeblock-header">
+        <span class="codeblock-lang">bash</span>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="c"># 1. Install Android Studio</span>
+<span class="c">#    https://developer.android.com/studio</span>
+
+<span class="c"># 2. Device Manager → Create Virtual Device</span>
+<span class="c">#    Recommended: Pixel 6, API 34 (Android 14), Play Store image</span>
+
+<span class="c"># 3. Start emulator, then:</span>
+<span class="k">flutter</span> run
+
+<span class="c"># Note: 10.0.2.2 inside the emulator = localhost on your PC</span></pre>
+    </div>
+
+    <h3>Option B — Genymotion</h3>
+    <p>Faster emulator, free for personal use. Download at <a href="https://www.genymotion.com/" target="_blank">genymotion.com</a>, create a device, then run <code>flutter run</code>.</p>
+
+    <h3>Option C — Physical device</h3>
+    <div class="codeblock">
+      <div class="codeblock-header">
+        <span class="codeblock-lang">bash</span>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="c"># 1. Enable Developer Mode:</span>
+<span class="c">#    Settings → About Phone → tap "Build Number" 7 times</span>
+
+<span class="c"># 2. Enable USB Debugging:</span>
+<span class="c">#    Settings → Developer Options → USB Debugging → ON</span>
+
+<span class="c"># 3. Connect via USB, accept the trust prompt</span>
+<span class="k">adb</span> devices
+<span class="k">flutter</span> run</pre>
+    </div>
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div class="callout-body"><strong>Safe practices:</strong> <code>flutter run</code> installs a normal debug APK — uninstall it like any app. Do NOT unlock the bootloader (that can brick the device — flutter run doesn't need it).</div>
+    </div>
+
+    <h3>Option D — Two clients simultaneously</h3>
+    <div class="codeblock">
+      <div class="codeblock-header">
+        <span class="codeblock-lang">bash</span>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="c"># Terminal 1: emulator</span>
+<span class="k">flutter</span> run -d emulator-<span class="num">5554</span>
+
+<span class="c"># Terminal 2: physical device</span>
+<span class="k">flutter</span> run -d your-device-id</pre>
+    </div>
+  </section>
+
+  <!-- WEBRTC -->
+  <section class="doc-section" id="webrtc">
+    <h2>WebRTC & P2P</h2>
+    <p>Under the hood VoiceCall uses <code>flutter_webrtc</code> to manage <strong>RTCPeerConnection</strong>, ICE candidate gathering, and DTLS handshake. The signaling server acts as a rendezvous point, relaying SDP offers/answers and ICE candidates.</p>
+
+    <h3>Call flow</h3>
+    <div class="arch">
+      <pre>
+Caller                    Signaling Server               Callee
+  │                             │                          │
+  │── auth (JWT) ──────────────►│◄──────────── auth (JWT) ─│
+  │                             │                          │
+  │── call { offer: SDP } ─────►│── call-incoming ────────►│
+  │                             │                          │
+  │◄──────────────── call-answered { answer: SDP } ────────│
+  │                             │                          │
+  │── ice { candidate } ───────►│── ice ──────────────────►│
+  │◄─────────────────────────── ice { candidate } ─────────│
+  │                             │                          │
+  │◄══════════ DTLS-SRTP encrypted P2P audio ══════════════►│</pre>
+    </div>
+  </section>
+
+  <!-- SECURITY -->
+  <section class="doc-section" id="security">
+    <h2>Security</h2>
+
+    <h3>Authentication</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Feature</th><th>Details</th></tr></thead>
+        <tbody>
+          <tr><td><code>JWT access tokens</code></td><td>15-minute expiry</td></tr>
+          <tr><td><code>Refresh tokens</code></td><td>30-day expiry, single-use rotation</td></tr>
+          <tr><td><code>Reuse detection</code></td><td>All sessions invalidated on reused refresh token</td></tr>
+          <tr><td><code>Bcrypt</code></td><td>Password hashing with cost factor 12</td></tr>
+          <tr><td><code>Rate limiting</code></td><td>10 auth attempts / 15 min / IP</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Call encryption</h3>
+    <div class="callout callout-info">
+      <span class="callout-icon">🔒</span>
+      <div class="callout-body">
+        <strong>DTLS-SRTP (RFC 5764)</strong> — All audio is end-to-end encrypted. WebRTC enforces DTLS by default. The signaling server cannot decrypt calls. DTLS fingerprints are displayed in-app for manual verification (TOFU — Trust On First Use).
+      </div>
+    </div>
+
+    <h3>Android security</h3>
+    <ul style="color:var(--text-mid);padding-left:20px;line-height:2;">
+      <li><strong>Encrypted SharedPreferences</strong> via <code>flutter_secure_storage</code> (Android Keystore)</li>
+      <li><strong>Certificate pinning</strong> template in <code>network_security_config.xml</code></li>
+      <li>No cleartext traffic to production domains</li>
+      <li><code>allowBackup="false"</code> — prevents credential extraction via ADB backup</li>
+    </ul>
+
+    <h3>Server security</h3>
+    <ul style="color:var(--text-mid);padding-left:20px;line-height:2;">
+      <li>Helmet.js security headers + CORS whitelist</li>
+      <li>Rate limiting per endpoint</li>
+      <li>MongoDB injection prevention (Mongoose)</li>
+      <li>Payload size limits (10 KB)</li>
+      <li>Non-root Docker container</li>
+      <li>WebSocket authentication before any operations</li>
+    </ul>
+  </section>
+
+  <!-- TURN -->
+  <section class="doc-section" id="turn">
+    <h2>TURN Server Setup</h2>
+    <p>For calls through corporate NAT/firewalls, deploy <strong>Coturn</strong>:</p>
+    <div class="codeblock">
+      <div class="codeblock-header">
+        <span class="codeblock-lang">bash</span>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="c"># Ubuntu/Debian</span>
+<span class="k">apt</span> install coturn</pre>
+    </div>
+    <div class="codeblock">
+      <div class="codeblock-header">
+        <span class="codeblock-lang">conf — /etc/turnserver.conf</span>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="env">listening-port</span>=<span class="num">3478</span>
+<span class="env">tls-listening-port</span>=<span class="num">5349</span>
+<span class="env">realm</span>=<span class="s">yourapp.com</span>
+<span class="env">server-name</span>=<span class="s">yourapp.com</span>
+fingerprint
+lt-cred-mech
+<span class="env">user</span>=<span class="s">turnuser:strongpassword</span>
+<span class="env">cert</span>=<span class="s">/path/to/cert.pem</span>
+<span class="env">pkey</span>=<span class="s">/path/to/key.pem</span>
+<span class="env">log-file</span>=<span class="s">/var/log/coturn/turn.log</span></pre>
+    </div>
+    <div class="callout callout-info">
+      <span class="callout-icon">💡</span>
+      <div class="callout-body">Free alternative: <a href="https://www.metered.ca/" target="_blank" style="color:var(--accent)">Metered.ca</a> has a free TURN tier. Update <code>lib/core/constants.dart</code> with your TURN credentials.</div>
+    </div>
+  </section>
+
+  <!-- DEEP LINKS -->
+  <section class="doc-section" id="deeplinks">
+    <h2>Deep Links & Call by Link</h2>
+    <p>Users can create shareable room links that expire after 24 hours:</p>
+    <div class="codeblock">
+      <div class="codeblock-header">
+        <span class="codeblock-lang">uri</span>
+      </div>
+      <pre><span class="c"># Native deep link</span>
+<span class="s">voicecall://join/ROOM-UUID</span>
+
+<span class="c"># HTTPS universal link</span>
+<span class="s">https://yourapp.com/join/ROOM-UUID</span></pre>
+    </div>
+    <p>The room creator waits as host. The joiner sends the WebRTC offer when they arrive. Links auto-expire after <strong>24 hours</strong>.</p>
+
+    <h3>Call by User ID</h3>
+    <p>Each user has a unique UUID shown on the home screen. Copy & paste to call directly — no link sharing needed.</p>
+  </section>
+
+  <!-- WS PROTOCOL -->
+  <section class="doc-section" id="ws-protocol">
+    <h2>WebSocket Signaling Protocol</h2>
+
+    <h3>Client → Server</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Message</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>auth</code></td><td>Authenticate WS connection with JWT</td></tr>
+          <tr><td><code>call</code></td><td>Send WebRTC offer to a user by ID</td></tr>
+          <tr><td><code>answer</code></td><td>Send WebRTC answer</td></tr>
+          <tr><td><code>ice</code></td><td>Send ICE candidate (RFC 8445)</td></tr>
+          <tr><td><code>hangup</code></td><td>End call</td></tr>
+          <tr><td><code>decline</code></td><td>Decline incoming call</td></tr>
+          <tr><td><code>create-room</code></td><td>Create shareable room link</td></tr>
+          <tr><td><code>join-room</code></td><td>Join room with WebRTC offer</td></tr>
+          <tr><td><code>room-host</code></td><td>Register as room host</td></tr>
+          <tr><td><code>room-answer</code></td><td>Answer joiner in a room</td></tr>
+          <tr><td><code>room-ice</code></td><td>ICE candidates for room mode</td></tr>
+          <tr><td><code>heartbeat</code></td><td>Keep connection alive</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Server → Client</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Message</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>auth-success</code></td><td>Authentication confirmed</td></tr>
+          <tr><td><code>call-incoming</code></td><td>Incoming call with SDP offer</td></tr>
+          <tr><td><code>call-answered</code></td><td>Remote answered with SDP answer</td></tr>
+          <tr><td><code>call-declined</code></td><td>Remote declined</td></tr>
+          <tr><td><code>ice</code></td><td>Remote ICE candidate</td></tr>
+          <tr><td><code>hangup</code></td><td>Remote ended call</td></tr>
+          <tr><td><code>user-offline</code></td><td>Target user not connected</td></tr>
+          <tr><td><code>user-busy</code></td><td>Target user in another call</td></tr>
+          <tr><td><code>room-created</code></td><td>Room + link created</td></tr>
+          <tr><td><code>room-joined</code></td><td>Someone joined your room</td></tr>
+          <tr><td><code>room-answered</code></td><td>Room host answered</td></tr>
+          <tr><td><code>session-replaced</code></td><td>New login replaced this session</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- REST API -->
+  <section class="doc-section" id="api">
+    <h2>REST API</h2>
+
+    <h3>Auth</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>POST</code></td><td><code>/api/auth/register</code></td><td>Register a new user</td></tr>
+          <tr><td><code>POST</code></td><td><code>/api/auth/login</code></td><td>Login, returns access + refresh tokens</td></tr>
+          <tr><td><code>POST</code></td><td><code>/api/auth/refresh</code></td><td>Refresh access token (rotates refresh)</td></tr>
+          <tr><td><code>POST</code></td><td><code>/api/auth/logout</code></td><td>Revoke refresh token</td></tr>
+          <tr><td><code>GET</code></td><td><code>/api/auth/me</code></td><td>Current user info</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Users</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>GET</code></td><td><code>/api/users/:userId</code></td><td>Get user by ID</td></tr>
+          <tr><td><code>GET</code></td><td><code>/api/users/search?q=</code></td><td>Search users by username</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Rooms</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>POST</code></td><td><code>/api/rooms</code></td><td>Create a shareable room link</td></tr>
+          <tr><td><code>GET</code></td><td><code>/api/rooms/:roomId</code></td><td>Validate a room link</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- PROJECT STRUCTURE -->
+  <section class="doc-section" id="project-structure">
+    <h2>Project Structure</h2>
+    <div class="codeblock">
+      <div class="codeblock-header">
+        <span class="codeblock-lang">tree</span>
+      </div>
+      <pre><span class="v">/</span>
+├── <span class="n">lib/</span>                           <span class="c"># Flutter client</span>
+│   ├── <span class="v">core/constants.dart</span>        <span class="c"># ICE servers, URLs, keys</span>
+│   ├── <span class="v">models/models.dart</span>         <span class="c"># Data models</span>
+│   ├── <span class="v">services/</span>
+│   │   ├── <span class="v">api_service.dart</span>        <span class="c"># REST API + JWT auto-refresh</span>
+│   │   ├── <span class="v">auth_service.dart</span>       <span class="c"># Auth state management</span>
+│   │   ├── <span class="v">signaling_service.dart</span>  <span class="c"># WebSocket signaling</span>
+│   │   └── <span class="v">webrtc_service.dart</span>     <span class="c"># RTCPeerConnection, ICE, DTLS</span>
+│   └── <span class="v">screens/</span>
+│       ├── <span class="v">auth/</span>                   <span class="c"># Login, Register</span>
+│       ├── <span class="v">home/</span>                   <span class="c"># User ID, search, call actions</span>
+│       └── <span class="v">call/</span>                   <span class="c"># Incoming, Active call screens</span>
+├── <span class="n">android/</span>
+│   └── <span class="v">app/src/main/</span>
+│       ├── <span class="v">AndroidManifest.xml</span>     <span class="c"># Permissions, deep links</span>
+│       └── <span class="v">res/xml/network_security_config.xml</span>
+├── <span class="n">server/</span>                        <span class="c"># Node.js signaling + REST</span>
+│   ├── <span class="v">src/index.js</span>               <span class="c"># Express + WebSocket server</span>
+│   ├── <span class="v">src/models/User.js</span>
+│   ├── <span class="v">src/routes/auth.js</span>
+│   ├── <span class="v">src/routes/users.js</span>
+│   ├── <span class="v">src/routes/rooms.js</span>
+│   ├── <span class="v">src/signaling/signalingServer.js</span>
+│   ├── <span class="v">docker-compose.yml</span>
+│   └── <span class="v">nginx.conf</span>                 <span class="c"># SSL termination + WS proxy</span>
+└── <span class="n">server-rust/</span>                   <span class="c"># Alternative Rust backend</span>
+    ├── <span class="v">src/main.rs</span>
+    ├── <span class="v">Cargo.toml</span>
+    └── <span class="v">docker-compose.yml</span></pre>
+    </div>
+  </section>
+
+  <!-- DEPLOYMENT -->
+  <section class="doc-section" id="deployment">
+    <h2>Deployment Checklist</h2>
+    <ul class="checklist">
+      <li><span class="chk-empty">☐</span> Generate strong JWT secrets (<code>openssl rand -hex 64</code>)</li>
+      <li><span class="chk-empty">☐</span> Set up MongoDB Atlas or self-hosted MongoDB with auth</li>
+      <li><span class="chk-empty">☐</span> Deploy Coturn or configure Metered.ca TURN</li>
+      <li><span class="chk-empty">☐</span> Get SSL certificate (Let's Encrypt via certbot)</li>
+      <li><span class="chk-empty">☐</span> Update <code>nginx.conf</code> with your domain</li>
+      <li><span class="chk-empty">☐</span> Update <code>constants.dart</code> with production URLs</li>
+      <li><span class="chk-empty">☐</span> Update <code>AndroidManifest.xml</code> deep link domain</li>
+      <li><span class="chk-empty">☐</span> Update <code>network_security_config.xml</code> domain</li>
+      <li><span class="chk-empty">☐</span> Set <code>ALLOWED_ORIGINS</code> to your app's domain</li>
+      <li><span class="chk-empty">☐</span> Enable <code>android:usesCleartextTraffic="false"</code> for release</li>
+      <li><span class="chk-empty">☐</span> Consider certificate pinning in <code>network_security_config.xml</code></li>
+      <li><span class="chk-empty">☐</span> Test calls on real devices across different networks</li>
+    </ul>
+  </section>
+
+</main>
+</div>
+
+<script>
+  // Sidebar toggle
+  function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('overlay').classList.toggle('open');
+  }
+
+  // Copy code
+  function copyCode(btn) {
+    const pre = btn.closest('.codeblock').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy', 2000);
+    });
+  }
+
+  // Active sidebar link on scroll
+  const sections = document.querySelectorAll('.doc-section');
+  const links = document.querySelectorAll('.sidebar a');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`.sidebar a[href="#${e.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -75% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
