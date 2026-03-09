@@ -460,10 +460,10 @@ pub async fn generate_invite_link(
     State(state): State<AppState>,
     Extension(auth): Extension<AuthUser>,
 ) -> ApiResult<Json<serde_json::Value>> {
-    use rand::{distributions::Alphanumeric, Rng};
+    use rand::{distr::Alphanumeric, Rng as _};
 
-    let token: String = rand::thread_rng()
-        .sample_iter(&Alphanumeric)
+    let token: String = rand::rng()
+        .sample_iter(Alphanumeric)
         .take(12)
         .map(char::from)
         .collect();

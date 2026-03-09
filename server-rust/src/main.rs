@@ -92,7 +92,7 @@ async fn main() -> anyhow::Result<()> {
         .await?;
 
     // Run migrations inline
-    sqlx::query(db::MIGRATIONS).execute(&pool).await?;
+    sqlx::raw_sql(db::MIGRATIONS).execute(&pool).await?;
     tracing::info!("PostgreSQL connected & migrated");
 
     let database = Database::new(pool);

@@ -16,7 +16,7 @@ use argon2::{
     Argon2, Params, Version,
 };
 use hkdf::Hkdf;
-use rand::Rng;
+use rand::Rng as _;
 use sha2::Sha256;
 
 use crate::errors::AppError;
@@ -114,7 +114,7 @@ pub fn derive_key(master: &[u8], info: &[u8]) -> [u8; 32] {
 
 #[allow(dead_code)]
 pub fn generate_token_id() -> String {
-    let bytes: [u8; 32] = rand::thread_rng().gen();
+    let bytes: [u8; 32] = rand::rng().random();
     hex::encode(bytes)
 }
 

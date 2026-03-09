@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 1: Build (uses full Rust toolchain)
 # ─────────────────────────────────────────────────────────────────────────────
-FROM rust:1.82-slim-bookworm AS builder
+FROM rust:1.85-slim-bookworm AS builder
 
 # Install system deps for sqlx native-tls
 RUN apt-get update && apt-get install -y \
