@@ -27,7 +27,15 @@ pub async fn require_auth(
         return Err(AppError::Unauthorized("User not found or deactivated".into()));
     }
 
-    req.extensions_mut().insert(AuthUser { user_id });
+    req.extensions_mut().insert(AuthUser {
+        user_id,
+        display_name: state
+            .db
+            .find_user_by_id(&user_id)
+            .await?
+            .map(|u| u.display_name)
+            .unwrap_or_default(),
+    });
     Ok(next.run(req).await)
 }
 
@@ -40,4 +48,5 @@ fn extract_bearer(headers: &axum::http::HeaderMap) -> Option<&str> {
 #[derive(Clone, Debug)]
 pub struct AuthUser {
     pub user_id: Uuid,
+    pub display_name: String,
 }
