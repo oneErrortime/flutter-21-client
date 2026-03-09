@@ -1,4 +1,4 @@
-use axum::{response::IntoResponse, http::StatusCode};
+use axum::{http::StatusCode, response::IntoResponse};
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use once_cell::sync::OnceCell;
 
@@ -24,8 +24,14 @@ pub fn install() -> PrometheusHandle {
     handle
 }
 
-pub async fn metrics_handler(
-    axum::extract::State(handle): axum::extract::State<PrometheusHandle>,
-) -> impl IntoResponse {
-    (StatusCode::OK, handle.render())
+/// Prometheus scrape endpoint — no AppState needed; reads from global handle.
+/// Protect this endpoint with a firewall rule or HTTP basic auth in production.
+pub async fn metrics_handler() -> impl IntoResponse {
+    match PROMETHEUS.get() {
+        Some(handle) => (StatusCode::OK, handle.render()),
+        None => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Metrics recorder not initialised".to_string(),
+        ),
+    }
 }
