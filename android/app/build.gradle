@@ -20,6 +20,12 @@ if (flutterRoot == null) {
         "Flutter SDK not found. Set flutter.sdk in android/local.properties.")
 }
 
+// flutter.versionCode / flutter.versionName were removed from FlutterExtension
+// in Flutter 3.22. Read them from local.properties (written by flutter tooling)
+// or fall back to defaults so CI doesn't break on a clean checkout.
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode') ?: '1'
+def flutterVersionName = localProperties.getProperty('flutter.versionName') ?: '1.0.0'
+
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 // Flutter Gradle plugin MUST come after com.android.application
@@ -53,8 +59,8 @@ android {
         applicationId "com.voicecall"
         minSdkVersion 21
         targetSdkVersion flutter.targetSdkVersion
-        versionCode   flutter.versionCode
-        versionName   flutter.versionName
+        versionCode   flutterVersionCode.toInteger()
+        versionName   flutterVersionName
         multiDexEnabled true
     }
 
