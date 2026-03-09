@@ -310,6 +310,9 @@ jobs:
     env:
       DATABASE_URL: postgres://voicecall:cipassword@localhost:5432/voicecall_ci
       REDIS_URL: redis://localhost:6379
+      # SQLX_OFFLINE=false: validate queries against the live DB at compile time.
+      # The server runs MIGRATIONS on startup via sqlx::raw_sql(), so the schema
+      # is always in sync — no separate bootstrap step needed.
       SQLX_OFFLINE: "false"
 
     steps:
@@ -324,69 +327,54 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: server-rust
-          key: ${{ hashFiles('server-rust/Cargo.lock') }}
+          key: rust-${{ runner.os }}-${{ hashFiles('server-rust/Cargo.lock') }}
+          restore-keys: rust-${{ runner.os }}-
 
-      # Bootstrap the schema so sqlx macros can verify column types
-      - name: Bootstrap database schema
+      - name: Bootstrap DB schema
+        # sqlx::query!() macros validate against a live DB at compile time.
+        # We run the same MIGRATIONS string the server uses at runtime.
         run: |
-          sudo apt-get install -y --no-install-recommends postgresql-client 2>/dev/null
           PGPASSWORD=cipassword psql \
-            -h localhost -U voicecall -d voicecall_ci << 'SQL'
-            CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
-            CREATE TABLE IF NOT EXISTS users (
-              id            BIGSERIAL PRIMARY KEY,
-              user_id       UUID        NOT NULL UNIQUE DEFAULT gen_random_uuid(),
-              username      VARCHAR(30) NOT NULL UNIQUE,
-              email         VARCHAR(255) NOT NULL UNIQUE,
-              display_name  VARCHAR(50) NOT NULL,
-              avatar_url    TEXT,
-              password_hash TEXT        NOT NULL,
-              is_active     BOOLEAN     NOT NULL DEFAULT true,
-              discoverable  BOOLEAN     NOT NULL DEFAULT true,
-              last_seen     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-              created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-              updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            );
-
-            CREATE TABLE IF NOT EXISTS rooms (
-              id          BIGSERIAL PRIMARY KEY,
-              room_id     UUID        NOT NULL UNIQUE DEFAULT gen_random_uuid(),
-              created_by  UUID        NOT NULL REFERENCES users(user_id),
-              is_active   BOOLEAN     NOT NULL DEFAULT true,
-              expires_at  TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '24 hours',
-              created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            );
-
-            CREATE TABLE IF NOT EXISTS contacts (
-              id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-              requester_id UUID        NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-              target_id    UUID        NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-              status       TEXT        NOT NULL DEFAULT 'pending'
-                               CHECK (status IN ('pending','accepted','blocked')),
-              created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-              updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-              UNIQUE (requester_id, target_id)
-            );
-            CREATE INDEX IF NOT EXISTS contacts_target_id_idx ON contacts (target_id);
-            CREATE INDEX IF NOT EXISTS contacts_status_idx    ON contacts (status);
-
-            CREATE TABLE IF NOT EXISTS invite_links (
-              id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-              owner_id   UUID        NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-              token      TEXT        NOT NULL UNIQUE,
-              uses_left  INTEGER     NOT NULL DEFAULT 1,
-              expires_at TIMESTAMPTZ NOT NULL DEFAULT now() + INTERVAL '24 hours',
-              created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-            );
-            CREATE INDEX IF NOT EXISTS invite_links_token_idx ON invite_links (token);
+            -h localhost -U voicecall -d voicecall_ci \
+            -f - << 'SQL'
+          CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+          CREATE TABLE IF NOT EXISTS users (
+            id BIGSERIAL PRIMARY KEY, user_id UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+            username VARCHAR(30) NOT NULL UNIQUE, email VARCHAR(255) NOT NULL UNIQUE,
+            display_name VARCHAR(50) NOT NULL, avatar_url TEXT, password_hash TEXT NOT NULL,
+            is_active BOOLEAN NOT NULL DEFAULT true, discoverable BOOLEAN NOT NULL DEFAULT true,
+            last_seen TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
+          CREATE TABLE IF NOT EXISTS rooms (
+            id BIGSERIAL PRIMARY KEY, room_id UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+            created_by UUID NOT NULL REFERENCES users(user_id),
+            is_active BOOLEAN NOT NULL DEFAULT true,
+            expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '24 hours',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
+          CREATE TABLE IF NOT EXISTS contacts (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            requester_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+            target_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+            status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','blocked')),
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            UNIQUE (requester_id, target_id)
+          );
+          CREATE TABLE IF NOT EXISTS invite_links (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            owner_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+            token TEXT NOT NULL UNIQUE, uses_left INTEGER NOT NULL DEFAULT 1,
+            expires_at TIMESTAMPTZ NOT NULL DEFAULT now() + INTERVAL '24 hours',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+          );
           SQL
 
       - name: cargo fmt --check
         run: cargo fmt --all -- --check || (echo "::warning::Run 'cargo fmt' locally" && true)
 
       - name: cargo clippy
-        run: cargo clippy --all-targets -- -D warnings || true
+        run: cargo clippy --all-targets -- -D warnings
 
       - name: cargo build --release
         run: cargo build --release
