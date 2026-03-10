@@ -1,2 +1,36 @@
+## Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+*.iml
+# pubspec.lock SHOULD be committed for apps (reproducible builds)
+# DO NOT add pubspec.lock here
+
+## Android
+android/.gradle/
+android/app/google-services.json
+android/keystore/
+android/key.properties
+*.apk
+*.aab
+
+## Rust
+server-rust/target/
+# Cargo.lock SHOULD be committed for binaries
+# DO NOT add Cargo.lock here
+
+## Node.js
 server/node_modules/
 server/logs/
+
+## Env files
+.env
+server-rust/.env
+server/.env
+
+## Editor
+.idea/
+.vscode/
+*.swp
+*.swo
