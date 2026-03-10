@@ -8,7 +8,7 @@ workflows:
     max_build_duration: 60   # minutes — fail fast if something hangs
 
     environment:
-      flutter: 3.22.2
+      flutter: 3.27.4
       java: 17
       groups:
         - keystore_credentials   # KEYSTORE_FILE, KEYSTORE_PASSWORD,
@@ -105,7 +105,7 @@ workflows:
     max_build_duration: 90
 
     environment:
-      flutter: 3.22.2
+      flutter: 3.27.4
       java: 17
       groups:
         - keystore_credentials
