@@ -1,0 +1,165 @@
+workflows:
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Android APK — debug + release (arm64-v8a only for speed)
+  # ─────────────────────────────────────────────────────────────────────────────
+  android-apk:
+    name: Android APK
+    max_build_duration: 60   # minutes — fail fast if something hangs
+
+    environment:
+      flutter: 3.22.2
+      java: 17
+      groups:
+        - keystore_credentials   # KEYSTORE_FILE, KEYSTORE_PASSWORD,
+                                 # KEY_ALIAS, KEY_PASSWORD (base64 jks)
+        - google_services        # GOOGLE_SERVICES_JSON (optional, base64)
+
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch_patterns:
+        - pattern: main
+          include: true
+        - pattern: master
+          include: true
+
+    scripts:
+      # ── google-services.json ───────────────────────────────────────────────
+      - name: Write google-services.json
+        script: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            echo "$GOOGLE_SERVICES_JSON" | base64 --decode \
+              > android/app/google-services.json
+          else
+            cp android/app/google-services.stub.json \
+               android/app/google-services.json
+          fi
+
+      # ── Keystore ───────────────────────────────────────────────────────────
+      - name: Write keystore + key.properties
+        script: |
+          if [ -n "$KEYSTORE_FILE" ]; then
+            echo "$KEYSTORE_FILE" | base64 --decode > android/keystore/release.jks
+            cat > android/key.properties <<EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=keystore/release.jks
+          EOF
+          else
+            # CI stub keystore — good enough for a build check
+            mkdir -p android/keystore
+            keytool -genkeypair -v \
+              -keystore android/keystore/release.jks \
+              -alias release \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=VoiceCall CI, O=CI, C=US" \
+              -storepass cipass123 -keypass cipass123 \
+              -noprompt
+            printf 'storePassword=cipass123\nkeyPassword=cipass123\nkeyAlias=release\nstoreFile=keystore/release.jks\n' \
+              > android/key.properties
+          fi
+
+      # ── Deps ───────────────────────────────────────────────────────────────
+      - name: flutter pub get
+        script: flutter pub get
+
+      # ── Build debug ────────────────────────────────────────────────────────
+      - name: Build debug APK (arm64)
+        script: |
+          flutter build apk \
+            --debug \
+            --target-platform android-arm64
+
+      # ── Build release ──────────────────────────────────────────────────────
+      # arm64-v8a only on branch push — covers 95%+ devices, 3× faster than split-per-abi.
+      # Full split-per-abi only on tagged releases (see release workflow below).
+      - name: Build release APK (arm64)
+        script: |
+          flutter build apk \
+            --release \
+            --obfuscate \
+            --split-debug-info=build/debug-info \
+            --target-platform android-arm64
+
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+      - build/debug-info/**
+
+    publishing:
+      email:
+        recipients:
+          - $CM_SUBMITTER_EMAIL   # whoever triggered the build
+        notify:
+          success: false   # no spam on green
+          failure: true
+
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Release — full split-per-abi + AAB, triggered only by version tags (v*.*.*)
+  # ─────────────────────────────────────────────────────────────────────────────
+  android-release:
+    name: Android Release (all ABI + AAB)
+    max_build_duration: 90
+
+    environment:
+      flutter: 3.22.2
+      java: 17
+      groups:
+        - keystore_credentials
+        - google_services
+
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'v*.*.*'
+          include: true
+
+    scripts:
+      - name: Write google-services.json
+        script: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            echo "$GOOGLE_SERVICES_JSON" | base64 --decode \
+              > android/app/google-services.json
+          else
+            cp android/app/google-services.stub.json \
+               android/app/google-services.json
+          fi
+
+      - name: Write keystore + key.properties
+        script: |
+          mkdir -p android/keystore
+          echo "$KEYSTORE_FILE" | base64 --decode > android/keystore/release.jks
+          cat > android/key.properties <<EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=keystore/release.jks
+          EOF
+
+      - name: flutter pub get
+        script: flutter pub get
+
+      - name: Build release APKs (all ABI)
+        script: |
+          flutter build apk \
+            --release \
+            --obfuscate \
+            --split-debug-info=build/debug-info \
+            --target-platform android-arm64,android-arm,android-x64 \
+            --split-per-abi
+
+      - name: Build App Bundle
+        script: |
+          flutter build appbundle \
+            --release \
+            --obfuscate \
+            --split-debug-info=build/debug-info
+
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+      - build/app/outputs/bundle/release/*.aab
+      - build/debug-info/**
