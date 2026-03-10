@@ -9,6 +9,7 @@ import 'services/api_service.dart';
 import 'services/contacts_service.dart';
 import 'services/signaling_service.dart';
 import 'services/webrtc_service.dart';
+import 'services/video_call_service.dart';
 import 'screens/splash_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
@@ -16,6 +17,7 @@ import 'screens/home/home_screen.dart';
 import 'screens/contacts/contacts_screen.dart';
 import 'screens/call/incoming_call_screen.dart';
 import 'screens/call/active_call_screen.dart';
+import 'screens/call/video_call_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,6 +40,7 @@ class _VoiceCallAppState extends State<VoiceCallApp> {
   late final ContactsService _contactsService;
   late final SignalingService _signalingService;
   late final WebRTCService _webRTCService;
+  late final VideoCallService _videoCallService;
   late final GoRouter _router;
 
   @override
@@ -47,6 +50,7 @@ class _VoiceCallAppState extends State<VoiceCallApp> {
     _contactsService = ContactsService(ApiService());
     _signalingService = SignalingService();
     _webRTCService = WebRTCService(_signalingService);
+    _videoCallService = VideoCallService(_signalingService);
 
     _router = GoRouter(
       initialLocation: '/splash',
@@ -80,6 +84,7 @@ class _VoiceCallAppState extends State<VoiceCallApp> {
         GoRoute(path: '/contacts', builder: (_, __) => const ContactsScreen()),
         GoRoute(path: '/call/incoming', builder: (_, __) => const IncomingCallScreen()),
         GoRoute(path: '/call/active', builder: (_, __) => const ActiveCallScreen()),
+        GoRoute(path: '/call/video', builder: (_, __) => const VideoCallScreen()),
         // Deep link: voicecall://join/:roomId  or  https://yourapp.com/join/:roomId
         GoRoute(
           path: '/join/:roomId',
@@ -96,6 +101,7 @@ class _VoiceCallAppState extends State<VoiceCallApp> {
   void dispose() {
     _signalingService.disconnect();
     _webRTCService.dispose();
+    _videoCallService.dispose();
     super.dispose();
   }
 
@@ -107,6 +113,7 @@ class _VoiceCallAppState extends State<VoiceCallApp> {
         ChangeNotifierProvider.value(value: _contactsService),
         ChangeNotifierProvider.value(value: _signalingService),
         ChangeNotifierProvider.value(value: _webRTCService),
+        ChangeNotifierProvider.value(value: _videoCallService),
       ],
       child: MaterialApp.router(
         title: 'VoiceCall',
