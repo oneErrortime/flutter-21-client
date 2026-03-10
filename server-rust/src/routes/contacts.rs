@@ -44,8 +44,7 @@ use uuid::Uuid;
 use crate::{
     auth::AuthUser,
     db::Database,
-    errors::AppError,
-    routes::ApiResult,
+    errors::{ApiResult, AppError},
     AppState,
 };
 
