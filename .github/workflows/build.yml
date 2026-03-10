@@ -87,15 +87,7 @@ jobs:
           if [ -n "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
             echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
           else
-            python3 -c "
-import json, pathlib
-stub = {
-  'project_info': {'project_number': '000000000000', 'project_id': 'voicecall-ci-stub', 'storage_bucket': 'voicecall-ci-stub.appspot.com'},
-  'client': [{'client_info': {'mobilesdk_app_id': '1:000000000000:android:0000000000000000000000', 'android_client_info': {'package_name': 'com.voicecall'}}, 'oauth_client': [], 'api_key': [{'current_key': 'stub'}], 'services': {'appinvite_service': {'other_platform_oauth_client': []}}}],
-  'configuration_version': '1'
-}
-pathlib.Path('android/app/google-services.json').write_text(json.dumps(stub, indent=2))
-"
+            cp android/app/google-services.stub.json android/app/google-services.json
           fi
 
       - name: flutter pub get
