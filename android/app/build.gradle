@@ -40,7 +40,9 @@ if (keyPropertiesFile.exists()) {
 android {
     namespace "com.voicecall"
     compileSdkVersion flutter.compileSdkVersion
-    ndkVersion flutter.ndkVersion
+    // FIX: flutter_webrtc (and other native plugins) require NDK 25.1.8937393.
+    // Without this line Gradle prints a warning; on some AGP versions it fails.
+    ndkVersion "25.1.8937393"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17

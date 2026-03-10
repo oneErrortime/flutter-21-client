@@ -12,9 +12,11 @@ dependencies:
     sdk: flutter
 
   # WebRTC — RFC 8825 / 8829 / DTLS-SRTP (RFC 5764)
-  # 0.12.x fixes the JSArray<MediaStreamTrack> not-Iterable compile error
-  # that broke the Dart 3 web build (dart2js) in 0.9.48+hotfix.1
-  flutter_webrtc: ^0.12.0
+  # PINNED to 0.12.0: versions 0.12.12+ use TextureRegistry.SurfaceProducer.Callback,
+  # which was added only in Flutter 3.27. Flutter 3.22.x doesn't have this interface
+  # and fails with "cannot find symbol: class Callback" at compile time.
+  # If upgrading Flutter to 3.27+, this pin can be relaxed back to ^0.12.0.
+  flutter_webrtc: 0.12.0
 
   # Networking
   dio: ^5.3.4
