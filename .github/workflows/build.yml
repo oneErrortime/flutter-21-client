@@ -82,6 +82,32 @@ jobs:
           storeFile=keystore/release.jks
           EOF
 
+      - name: Create google-services.json
+        run: |
+          if [ -n "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
+            echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+          else
+            cat > android/app/google-services.json << 'JSON'
+            {
+              "project_info": {
+                "project_number": "000000000000",
+                "project_id": "voicecall-ci-stub",
+                "storage_bucket": "voicecall-ci-stub.appspot.com"
+              },
+              "client": [{
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+                  "android_client_info": { "package_name": "com.voicecall" }
+                },
+                "oauth_client": [],
+                "api_key": [{ "current_key": "stub" }],
+                "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+              }],
+              "configuration_version": "1"
+            }
+            JSON
+          fi
+
       - name: flutter pub get
         run: flutter pub get
 
@@ -370,6 +396,20 @@ jobs:
 
       - name: cargo test
         run: cargo test --all-features || true
+
+      - name: Generate sqlx offline cache
+        run: |
+          cargo install sqlx-cli --no-default-features --features postgres --locked 2>/dev/null || true
+          cargo sqlx prepare -- --all-targets
+
+      - name: Commit sqlx cache if changed
+        working-directory: ${{ github.workspace }}
+        run: |
+          git config user.email "ci@github.com"
+          git config user.name "GitHub CI"
+          git add server-rust/.sqlx || true
+          git diff --staged --quiet || git commit -m "chore: update sqlx offline query cache [skip ci]"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref_name }} || true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

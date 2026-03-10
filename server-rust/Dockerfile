@@ -11,6 +11,11 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /build
 
+# SQLX_OFFLINE=true — sqlx::query!() macros validate against .sqlx/ cache
+# instead of a live database. The CI job runs cargo build against a live DB
+# (and generates .sqlx/ via cargo sqlx prepare), Docker just needs to compile.
+ENV SQLX_OFFLINE=true
+
 # Cache dependencies separately (faster rebuilds)
 COPY Cargo.toml Cargo.lock ./
 RUN mkdir src && echo 'fn main(){}' > src/main.rs
