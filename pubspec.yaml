@@ -61,7 +61,7 @@ dependencies:
   cryptography: ^2.7.0
 
   # Haptic feedback
-  vibration: ^1.8.4
+  vibration: ^3.0.0
 
   # Keep screen on during calls
   wakelock_plus: ^1.1.4
