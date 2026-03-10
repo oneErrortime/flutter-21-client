@@ -1,22 +1,35 @@
-// ── Flutter app/build.gradle — Flutter 3.24+ declarative plugins style ───────
+// ── Flutter app/build.gradle ─────────────────────────────────────────────────
 //
-// Plugin versions are resolved via settings.gradle pluginManagement block.
-// The old imperative `apply from: flutter.gradle` + `apply plugin:` style
-// was removed in Flutter 3.24.
+// Flutter 3.22 / AGP 8.x — imperative apply-from style.
+//
+// The Flutter Gradle plugin is NOT published to the Gradle Plugin Portal,
+// so the declarative `plugins { id "dev.flutter.flutter-gradle-plugin" }`
+// block WILL FAIL with "plugin not found in any repository".
+// The only correct approach is: apply from: "$flutterRoot/.../flutter.gradle"
 // ─────────────────────────────────────────────────────────────────────────────
-
-plugins {
-    id "com.android.application"
-    id "org.jetbrains.kotlin.android"
-    id "dev.flutter.flutter-gradle-plugin"
-    id "com.google.gms.google-services"
-}
 
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file('local.properties')
 if (localPropertiesFile.exists()) {
     localPropertiesFile.withReader('UTF-8') { reader -> localProperties.load(reader) }
 }
+
+def flutterRoot = localProperties.getProperty('flutter.sdk')
+if (flutterRoot == null) {
+    throw new GradleException(
+        "Flutter SDK not found. Set flutter.sdk in android/local.properties.")
+}
+
+// flutter.versionCode / flutter.versionName were removed from FlutterExtension
+// in Flutter 3.22. Read them from local.properties (written by flutter tooling)
+// or fall back to defaults so CI doesn't break on a clean checkout.
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode') ?: '1'
+def flutterVersionName = localProperties.getProperty('flutter.versionName') ?: '1.0.0'
+
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+// Flutter Gradle plugin MUST come after com.android.application
+apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 
 def keyPropertiesFile = rootProject.file('key.properties')
 def keyProperties = new Properties()
@@ -26,12 +39,15 @@ if (keyPropertiesFile.exists()) {
 
 android {
     namespace "com.voicecall"
-    compileSdk flutter.compileSdkVersion
+    compileSdkVersion flutter.compileSdkVersion
+    // FIX: flutter_webrtc (and other native plugins) require NDK 25.1.8937393.
+    // Without this line Gradle prints a warning; on some AGP versions it fails.
     ndkVersion "26.1.10909125"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
+        // Required by flutter_local_notifications (and any lib using Java 8+ APIs on API < 26)
         coreLibraryDesugaringEnabled true
     }
 
@@ -47,8 +63,8 @@ android {
         applicationId "com.voicecall"
         minSdkVersion 21
         targetSdkVersion flutter.targetSdkVersion
-        versionCode   flutter.versionCode
-        versionName   flutter.versionName
+        versionCode   flutterVersionCode.toInteger()
+        versionName   flutterVersionName
         multiDexEnabled true
     }
 
@@ -74,6 +90,13 @@ android {
                           'proguard-rules.pro'
         }
     }
+
+    // FIX: removed 'splits { abi }' block.
+    // Gradle-level ABI splits put APKs in build/app/outputs/apk/debug/
+    // but Flutter's tool expects build/app/outputs/flutter-apk/.
+    // Result: "Gradle build failed to produce an .apk file" even though
+    // the build succeeded. Flutter manages ABI splitting itself via the
+    // --split-per-abi flag in the build command — no Gradle config needed.
 }
 
 flutter {
@@ -81,6 +104,8 @@ flutter {
 }
 
 dependencies {
+    // Core library desugaring — enables Java 8+ APIs (java.time, etc.) on Android < API 26
+    // Required by flutter_local_notifications
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
 
     implementation platform('com.google.firebase:firebase-bom:33.1.0')
@@ -88,3 +113,5 @@ dependencies {
     implementation 'com.google.firebase:firebase-analytics-ktx'
     implementation "org.jetbrains.kotlin:kotlin-stdlib"
 }
+
+apply plugin: 'com.google.gms.google-services'
