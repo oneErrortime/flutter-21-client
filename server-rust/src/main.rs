@@ -21,7 +21,7 @@ use axum::{
     http::{HeaderValue, Method, StatusCode},
     middleware,
     response::Json,
-    routing::{get, post},
+    routing::{delete, get, post},
     Router,
 };
 use sqlx::postgres::PgPoolOptions;
@@ -170,6 +170,8 @@ async fn main() -> anyhow::Result<()> {
     // user_routes — search must be declared before the :user_id catch-all
     let user_routes = Router::new()
         .route("/search", get(routes::search_users))
+        // GET /api/users/by-handle/:handle — Flutter client calls this path
+        .route("/by-handle/:handle", get(routes::contacts::get_user_by_handle))
         .route("/:user_id", get(routes::get_user))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
@@ -185,10 +187,11 @@ async fn main() -> anyhow::Result<()> {
         .route("/request", post(routes::contacts::send_request))
         .route("/accept", post(routes::contacts::accept_request))
         .route("/decline", post(routes::contacts::decline_request))
-        .route("/remove", post(routes::contacts::remove_contact))
+        // Flutter client sends DELETE /api/contacts/:userId
+        .route("/:user_id", delete(routes::contacts::remove_contact))
         .route("/block", post(routes::contacts::block_user))
-        .route("/by-handle/:handle", get(routes::contacts::get_user_by_handle))
-        .route("/invite", post(routes::contacts::generate_invite_link))
+        // Flutter client sends POST /api/contacts/invite-link (with hyphen)
+        .route("/invite-link", post(routes::contacts::generate_invite_link))
         .route("/invite/use", post(routes::contacts::use_invite_link))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
