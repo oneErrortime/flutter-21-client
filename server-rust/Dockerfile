@@ -1,9 +1,10 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 1: Build (uses full Rust toolchain)
 # ─────────────────────────────────────────────────────────────────────────────
-# FIX: use 'stable' tag — pinning to 1.88 broke the build because that image
-# didn't exist. 'stable' always resolves to the current stable release.
-FROM rust:stable-slim-bookworm AS builder
+# rust:slim-bookworm always resolves to the current stable release.
+# NOTE: 'rust:stable-slim-bookworm' does NOT exist on Docker Hub —
+# the correct slim+bookworm tag is just 'rust:slim-bookworm'.
+FROM rust:slim-bookworm AS builder
 
 # Install system deps for sqlx native-tls
 RUN apt-get update && apt-get install -y \
