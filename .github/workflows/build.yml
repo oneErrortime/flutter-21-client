@@ -249,6 +249,9 @@ jobs:
   rust-build:
     name: Rust Build & Docker
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # git push for .sqlx commit
+      packages: write   # ghcr.io push
     defaults:
       run:
         working-directory: server-rust
