@@ -360,7 +360,14 @@ jobs:
       # Commit .sqlx/ back to the repo so the Docker build (SQLX_OFFLINE=true)
       # can find the query cache. Without this, Docker build fails because
       # sqlx::query!() macros have no cached type info to validate against.
+      #
+      # FIX: Override working-directory to repo root so that:
+      #   1. `git add server-rust/.sqlx` resolves correctly (was doubling to
+      #      server-rust/server-rust/.sqlx because the job default CWD is
+      #      already `server-rust/`).
+      #   2. git push uses the correct remote context.
       - name: Commit sqlx offline cache
+        working-directory: .
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
