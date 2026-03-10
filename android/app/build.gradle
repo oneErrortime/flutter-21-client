@@ -91,14 +91,12 @@ android {
         }
     }
 
-    splits {
-        abi {
-            enable true
-            reset()
-            include 'arm64-v8a', 'armeabi-v7a', 'x86_64'
-            universalApk false
-        }
-    }
+    // FIX: removed 'splits { abi }' block.
+    // Gradle-level ABI splits put APKs in build/app/outputs/apk/debug/
+    // but Flutter's tool expects build/app/outputs/flutter-apk/.
+    // Result: "Gradle build failed to produce an .apk file" even though
+    // the build succeeded. Flutter manages ABI splitting itself via the
+    // --split-per-abi flag in the build command — no Gradle config needed.
 }
 
 flutter {
