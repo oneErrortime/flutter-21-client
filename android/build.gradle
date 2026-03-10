@@ -19,12 +19,13 @@ allprojects {
     }
 }
 
-// Redirect all subproject build outputs to a single location.
-// This keeps $projectDir clean and makes CI artifact paths predictable.
-rootProject.buildDir = "../build"
-subprojects {
-    project.buildDir = "${rootProject.buildDir}/${project.name}"
-}
+// FIX: removed custom rootProject.buildDir / subprojects.buildDir redirect.
+// Flutter tool hardcodes the APK lookup path to
+//   android/app/build/outputs/flutter-apk/*.apk
+// Redirecting buildDir to ../build moves APKs outside that path →
+// "Gradle build failed to produce an .apk file" even when build succeeded.
+// Standard Flutter projects never override buildDir.
+
 subprojects {
     project.evaluationDependsOn(":app")
 }
