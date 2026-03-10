@@ -280,8 +280,44 @@ pathlib.Path('android/app/google-services.json').write_text(json.dumps(stub, ind
 # macros validate SQL against the live schema at compile time.
 # SQLX_OFFLINE=false means: use the live DB (most thorough checking).
 # ────────────────────────────────────────────────────────────────────────────
-  rust:
-    name: Rust Server
+# ────────────────────────────────────────────────────────────────────────────
+# Rust — fast checks (fmt + clippy), no DB needed, runs in parallel with build
+# ────────────────────────────────────────────────────────────────────────────
+  rust-check:
+    name: Rust Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server-rust
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: sccache
+        uses: mozilla-actions/sccache-action@v0.0.5
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server-rust
+          shared-key: rust-${{ runner.os }}
+        env:
+          RUSTC_WRAPPER: sccache
+          SCCACHE_GHA_ENABLED: "true"
+          SQLX_OFFLINE: "true"
+
+      - name: cargo fmt --check
+        run: cargo fmt --all -- --check || (echo "::warning::Run 'cargo fmt' locally" && true)
+
+# ────────────────────────────────────────────────────────────────────────────
+# Rust — full build + test + docker (needs live DB for sqlx::query! macros)
+# ────────────────────────────────────────────────────────────────────────────
+  rust-build:
+    name: Rust Build & Docker
     runs-on: ubuntu-latest
 
     services:
@@ -316,28 +352,30 @@ pathlib.Path('android/app/google-services.json').write_text(json.dumps(stub, ind
     env:
       DATABASE_URL: postgres://voicecall:cipassword@localhost:5432/voicecall_ci
       REDIS_URL: redis://localhost:6379
-      # SQLX_OFFLINE=false: validate queries against the live DB at compile time.
-      # The server runs MIGRATIONS on startup via sqlx::raw_sql(), so the schema
-      # is always in sync — no separate bootstrap step needed.
       SQLX_OFFLINE: "false"
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTFLAGS: "-C link-arg=-fuse-ld=mold"
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
+
+      - name: Install mold linker
+        run: sudo apt-get install -y mold
+
+      - name: sccache
+        uses: mozilla-actions/sccache-action@v0.0.5
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: server-rust
-          key: rust-${{ runner.os }}-${{ hashFiles('server-rust/Cargo.lock') }}
+          shared-key: rust-${{ runner.os }}
 
       - name: Bootstrap DB schema
-        # sqlx::query!() macros validate against a live DB at compile time.
-        # We run the same MIGRATIONS string the server uses at runtime.
         run: |
           PGPASSWORD=cipassword psql \
             -h localhost -U voicecall -d voicecall_ci \
@@ -375,9 +413,6 @@ pathlib.Path('android/app/google-services.json').write_text(json.dumps(stub, ind
           );
           SQL
 
-      - name: cargo fmt --check
-        run: cargo fmt --all -- --check || (echo "::warning::Run 'cargo fmt' locally" && true)
-
       - name: cargo clippy
         run: cargo clippy --all-targets -- -D warnings
 
@@ -386,20 +421,6 @@ pathlib.Path('android/app/google-services.json').write_text(json.dumps(stub, ind
 
       - name: cargo test
         run: cargo test --all-features || true
-
-      - name: Generate sqlx offline cache
-        run: |
-          cargo install sqlx-cli --no-default-features --features postgres --locked 2>/dev/null || true
-          cargo sqlx prepare -- --all-targets
-
-      - name: Commit sqlx cache if changed
-        working-directory: ${{ github.workspace }}
-        run: |
-          git config user.email "ci@github.com"
-          git config user.name "GitHub CI"
-          git add server-rust/.sqlx || true
-          git diff --staged --quiet || git commit -m "chore: update sqlx offline query cache [skip ci]"
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref_name }} || true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
