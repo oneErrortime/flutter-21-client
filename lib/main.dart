@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'core/theme.dart';
@@ -18,6 +19,10 @@ import 'screens/call/active_call_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Firebase must be initialized before any Firebase service is used.
+  // The google-services.json (Android) / GoogleService-Info.plist (iOS)
+  // must be present at build time — use the stub file for local dev/CI.
+  await Firebase.initializeApp();
   runApp(const VoiceCallApp());
 }
 

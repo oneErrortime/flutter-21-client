@@ -239,6 +239,10 @@ jobs:
       RUSTC_WRAPPER: sccache
       SCCACHE_GHA_ENABLED: "true"
       RUSTFLAGS: "-C link-arg=-fuse-ld=mold"
+      # Dummy secrets for CI compilation/tests — do NOT use in production
+      JWT_ACCESS_SECRET: "ci_access_secret_not_for_production_use_64chars_padded_here!!"
+      JWT_REFRESH_SECRET: "ci_refresh_secret_not_for_production_use_64chars_padded_here!"
+      SIGNALING_SECRET: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     services:
       postgres:
         image: postgres:16-alpine
@@ -323,6 +327,21 @@ jobs:
 
       - name: cargo test
         run: cargo test --all-features || true
+
+      # Generate .sqlx/ offline query metadata so Docker build works
+      # without a live database (SQLX_OFFLINE=true in Dockerfile).
+      # Must run AFTER cargo build (compiled binary is needed by prepare).
+      - name: Install sqlx-cli
+        run: |
+          cargo install sqlx-cli \
+            --no-default-features \
+            --features rustls,postgres \
+            --locked \
+            --quiet
+
+      - name: Generate sqlx offline cache
+        run: cargo sqlx prepare --workspace
+        # This writes server-rust/.sqlx/*.json — included in Docker context
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

@@ -64,9 +64,6 @@ dependencies:
   # Keep screen on during calls
   wakelock_plus: ^1.1.4
 
-  # Audio routing (speaker / earpiece / bluetooth)
-  flutter_callkit_incoming: ^2.0.4
-
 dev_dependencies:
   flutter_test:
     sdk: flutter

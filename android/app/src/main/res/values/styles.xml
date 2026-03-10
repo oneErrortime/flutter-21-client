@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- LaunchTheme: shown while Flutter is loading (splash screen).
+         Must match the window background drawn by the launch screen. -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <!-- Show a splash background while Flutter renders first frame. -->
+        <item name="android:windowBackground">@drawable/launch_background</item>
+        <!-- Remove status bar to show a full-screen splash. -->
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+
+    <!-- NormalTheme: applied after Flutter's first frame is rendered.
+         Replaces the splash theme. Transparent background lets Flutter
+         draw the entire UI surface. -->
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+</resources>
