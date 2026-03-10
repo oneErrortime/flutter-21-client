@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            u.user_id, u.username, u.display_name, u.avatar_url, u.last_seen,\n            c.created_at\n        FROM contacts c\n        JOIN users u ON (\n            CASE WHEN c.requester_id = $1 THEN c.target_id ELSE c.requester_id END = u.user_id\n        )\n        WHERE (c.requester_id = $1 OR c.target_id = $1)\n          AND c.status = 'accepted'\n        ORDER BY u.display_name ASC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "username",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "display_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "avatar_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "last_seen",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "1ed74e1147f713c675e495a7429172ebef0f7664794d9bf6f5a721dd284c1558"
+}

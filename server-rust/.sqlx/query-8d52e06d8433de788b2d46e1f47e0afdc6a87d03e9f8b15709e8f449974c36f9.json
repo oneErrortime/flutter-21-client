@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        DELETE FROM contacts\n        WHERE (requester_id = $1 AND target_id = $2)\n           OR (requester_id = $2 AND target_id = $1)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8d52e06d8433de788b2d46e1f47e0afdc6a87d03e9f8b15709e8f449974c36f9"
+}

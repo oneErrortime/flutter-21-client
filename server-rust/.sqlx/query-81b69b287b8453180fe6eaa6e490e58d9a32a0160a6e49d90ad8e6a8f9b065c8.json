@@ -1,0 +1,53 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            u.user_id, u.username, u.display_name, u.avatar_url,\n            u.discoverable,\n            EXISTS(\n                SELECT 1 FROM contacts c\n                WHERE c.status = 'accepted'\n                  AND ((c.requester_id = $2 AND c.target_id = u.user_id)\n                    OR (c.requester_id = u.user_id AND c.target_id = $2))\n            ) as \"is_contact!: bool\"\n        FROM users u\n        WHERE lower(u.username) = lower($1)\n          AND u.is_active = true\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "username",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "display_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "avatar_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "discoverable",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 5,
+        "name": "is_contact!: bool",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      null
+    ]
+  },
+  "hash": "81b69b287b8453180fe6eaa6e490e58d9a32a0160a6e49d90ad8e6a8f9b065c8"
+}

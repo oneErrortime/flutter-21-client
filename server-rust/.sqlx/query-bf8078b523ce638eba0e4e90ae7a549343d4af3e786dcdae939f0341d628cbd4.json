@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT status FROM contacts\n        WHERE (requester_id = $1 AND target_id = $2)\n           OR (requester_id = $2 AND target_id = $1)\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "status",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "bf8078b523ce638eba0e4e90ae7a549343d4af3e786dcdae939f0341d628cbd4"
+}

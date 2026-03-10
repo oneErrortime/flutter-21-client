@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO contacts (requester_id, target_id, status)\n        VALUES ($1, $2, 'pending')\n        ON CONFLICT DO NOTHING\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b3302520bcb914a38a6bbbf152fd7cebaa7d332edc3c8119b2af974f25f32642"
+}

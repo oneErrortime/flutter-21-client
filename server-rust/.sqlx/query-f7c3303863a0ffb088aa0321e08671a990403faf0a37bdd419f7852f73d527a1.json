@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO contacts (requester_id, target_id, status)\n        VALUES ($1, $2, 'blocked')\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f7c3303863a0ffb088aa0321e08671a990403faf0a37bdd419f7852f73d527a1"
+}

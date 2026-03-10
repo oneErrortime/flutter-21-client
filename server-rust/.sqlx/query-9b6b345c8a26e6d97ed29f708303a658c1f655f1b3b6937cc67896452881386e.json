@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE contacts SET status = 'accepted', updated_at = now()\n        WHERE requester_id = $1 AND target_id = $2 AND status = 'pending'\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9b6b345c8a26e6d97ed29f708303a658c1f655f1b3b6937cc67896452881386e"
+}
