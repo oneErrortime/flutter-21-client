@@ -1,23 +1,31 @@
-// settings.gradle for Flutter 3.22 / Gradle 8.4
-//
-// Uses the LEGACY apply-from pattern because Flutter 3.22's plugin loader
-// (app_plugin_loader.gradle) is itself an apply-from script. The deprecation
-// warning about "imperative apply script method" is safe to ignore for
-// Flutter 3.22 — the declarative migration requires Flutter 3.24+.
+// settings.gradle — Flutter 3.24+ declarative plugin style.
+
+pluginManagement {
+    def localPropertiesFile = new File(rootProject.projectDir, 'local.properties')
+    def properties = new Properties()
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.withReader('UTF-8') { reader -> properties.load(reader) }
+    }
+    def flutterSdkPath = properties.getProperty('flutter.sdk')
+    if (flutterSdkPath == null) {
+        flutterSdkPath = System.env.FLUTTER_ROOT
+    }
+    assert flutterSdkPath != null, "flutter.sdk not set in local.properties and FLUTTER_ROOT not set"
+
+    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+plugins {
+    id "dev.flutter.flutter-plugin-loader" version "1.0.0"
+    id "com.android.application"              version "8.6.0" apply false
+    id "org.jetbrains.kotlin.android"         version "2.1.0" apply false
+    id "com.google.gms.google-services"       version "4.4.1" apply false
+}
 
 include ':app'
-
-def localPropertiesFile = new File(rootProject.projectDir, 'local.properties')
-def properties = new Properties()
-
-assert localPropertiesFile.exists(), \
-    "Missing android/local.properties. CI step 'Write local.properties' must run first."
-
-localPropertiesFile.withReader('UTF-8') { reader -> properties.load(reader) }
-
-def flutterSdkPath = properties.getProperty('flutter.sdk')
-assert flutterSdkPath != null, "flutter.sdk not set in local.properties"
-assert new File(flutterSdkPath).isDirectory(), \
-    "flutter.sdk path does not exist: $flutterSdkPath"
-
-apply from: "$flutterSdkPath/packages/flutter_tools/gradle/app_plugin_loader.gradle"
