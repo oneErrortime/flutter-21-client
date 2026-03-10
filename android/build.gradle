@@ -1,16 +1,6 @@
-buildscript {
-    ext.kotlin_version = "2.1.0" // FIX: Firebase 22.5.x requires Kotlin 2.1.0+
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath "com.android.tools.build:gradle:8.2.2"
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        // Google Services plugin needed for Firebase
-        classpath "com.google.gms:google-services:4.4.1"
-    }
-}
+// root build.gradle — Flutter 3.24+ declarative style.
+// Plugin versions are declared in settings.gradle pluginManagement block.
+// The old buildscript{} block is no longer needed.
 
 allprojects {
     repositories {
@@ -18,13 +8,6 @@ allprojects {
         mavenCentral()
     }
 }
-
-// FIX: removed custom rootProject.buildDir / subprojects.buildDir redirect.
-// Flutter tool hardcodes the APK lookup path to
-//   android/app/build/outputs/flutter-apk/*.apk
-// Redirecting buildDir to ../build moves APKs outside that path →
-// "Gradle build failed to produce an .apk file" even when build succeeded.
-// Standard Flutter projects never override buildDir.
 
 subprojects {
     project.evaluationDependsOn(":app")
