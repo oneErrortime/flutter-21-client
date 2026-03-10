@@ -318,7 +318,6 @@ jobs:
         with:
           workspaces: server-rust
           key: rust-${{ runner.os }}-${{ hashFiles('server-rust/Cargo.lock') }}
-          restore-keys: rust-${{ runner.os }}-
 
       - name: Bootstrap DB schema
         # sqlx::query!() macros validate against a live DB at compile time.
