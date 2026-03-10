@@ -1,0 +1,5 @@
+# Exclude build output (huge, rebuilt inside Docker anyway)
+target/
+
+# Keep .sqlx/ — required for SQLX_OFFLINE=true inside Docker build
+# (do NOT add .sqlx here)
