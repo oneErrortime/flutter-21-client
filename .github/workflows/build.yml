@@ -3,8 +3,7 @@ name: Build & Release
 on:
   push:
     branches: [main, master]
-    tags:
-      - 'v*.*.*'
+    tags: ['v*.*.*']
   pull_request:
     branches: [main, master]
 
@@ -12,14 +11,14 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# ────────────────────────────────────────────────────────────────────────────
-# Android APK + App Bundle
-# ────────────────────────────────────────────────────────────────────────────
 jobs:
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Android
+# ─────────────────────────────────────────────────────────────────────────────
   android:
     name: Android APK
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -75,12 +74,8 @@ jobs:
 
       - name: Create key.properties
         run: |
-          cat > android/key.properties <<EOF
-          storePassword=cipass123
-          keyPassword=cipass123
-          keyAlias=release
-          storeFile=keystore/release.jks
-          EOF
+          printf 'storePassword=cipass123\nkeyPassword=cipass123\nkeyAlias=release\nstoreFile=keystore/release.jks\n' \
+            > android/key.properties
 
       - name: Create google-services.json
         run: |
@@ -138,23 +133,20 @@ jobs:
           draft: false
           prerelease: ${{ contains(github.ref, '-rc') || contains(github.ref, '-beta') || contains(github.ref, '-alpha') }}
 
-# ────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
 # Flutter Web → GitHub Pages
-# ────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
   web:
     name: Flutter Web + GitHub Pages
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request'
-
     permissions:
       contents: write
       pages: write
       id-token: write
-
     environment:
       name: github-pages
       url: ${{ steps.pages.outputs.page_url }}
-
     steps:
       - uses: actions/checkout@v4
 
@@ -175,15 +167,11 @@ jobs:
       - name: flutter pub get
         run: flutter pub get
 
-      # canvaskit renderer — consistent rendering cross-browser.
-      # Do NOT pass both FLUTTER_WEB_AUTO_DETECT=true and --web-renderer;
-      # they conflict. Use one approach: either auto-detect OR explicit renderer.
       - name: Build Flutter Web
         run: |
           flutter build web \
             --release \
             --web-renderer canvaskit \
-            --dart-define=FLUTTER_WEB_USE_SKIA=true \
             --base-href "/${{ github.event.repository.name }}/"
 
       - name: Copy web test client
@@ -191,59 +179,10 @@ jobs:
 
       - name: Create server config
         run: |
-          cat > build/web/config.js << 'JS'
-          window.VOICECALL_CONFIG = {
-            serverUrl: "wss://your-server.com/ws",
-            apiBase:   "https://your-server.com",
-          };
-          JS
+          printf 'window.VOICECALL_CONFIG = { serverUrl: "wss://your-server.com/ws", apiBase: "https://your-server.com" };\n' \
+            > build/web/config.js
           sed -i 's|</head>|<script src="config.js"></script>\n</head>|' build/web/index.html || true
           sed -i 's|</head>|<script src="config.js"></script>\n</head>|' build/web/webclient.html || true
-
-      - name: Create landing page
-        run: |
-          cat > build/web/landing.html << 'HTML'
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width,initial-scale=1">
-          <title>VoiceCall — Test Builds</title>
-          <style>
-            *{box-sizing:border-box;margin:0;padding:0}
-            body{font-family:system-ui,sans-serif;background:#0d0d1a;color:#e0e0e0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
-            h1{font-size:1.8rem;margin-bottom:32px;color:#fff;text-align:center}
-            .cards{display:flex;gap:20px;flex-wrap:wrap;justify-content:center}
-            .card{background:#1a1a2e;border:1px solid #2a2a4a;border-radius:16px;padding:28px;max-width:280px;display:flex;flex-direction:column;gap:12px}
-            .card p{color:#888;font-size:13px;line-height:1.6;flex:1}
-            .card a{display:inline-block;padding:10px 22px;background:#533483;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;text-align:center}
-            .card a:hover{background:#6040a0}
-          </style>
-          </head>
-          <body>
-          <div>
-            <h1>🔊 VoiceCall Test Builds</h1>
-            <div class="cards">
-              <div class="card">
-                <h2>⚡ Standalone Test Client</h2>
-                <p>Pure HTML/JS WebRTC test client. Works in any browser. No Flutter needed.</p>
-                <a href="webclient.html">Open Test Client</a>
-              </div>
-              <div class="card">
-                <h2>📱 Flutter Web App</h2>
-                <p>Full Flutter web build. Requires WebRTC (Chrome 80+, Firefox 75+, Safari 14+).</p>
-                <a href="index.html">Open Flutter App</a>
-              </div>
-              <div class="card">
-                <h2>📚 Documentation</h2>
-                <p>Architecture, API reference, security model, QUIC/Noise guide, deployment checklist.</p>
-                <a href="docs/">Open Docs</a>
-              </div>
-            </div>
-          </div>
-          </body>
-          </html>
-          HTML
 
       - name: Copy docs into web build
         run: cp -r docs build/web/docs
@@ -260,21 +199,13 @@ jobs:
       - name: Print live URLs
         run: |
           BASE="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
-          echo "🌐 Landing : ${BASE}/landing.html"
-          echo "⚡ Test    : ${BASE}/webclient.html"
-          echo "📱 Flutter : ${BASE}/"
-          echo "📚 Docs    : ${BASE}/docs/"
+          echo "Flutter : ${BASE}/"
+          echo "Test    : ${BASE}/webclient.html"
+          echo "Docs    : ${BASE}/docs/"
 
-# ────────────────────────────────────────────────────────────────────────────
-# Rust server — fmt / clippy / build / test / Docker
-#
-# Postgres + Redis service containers are required because sqlx::query!()
-# macros validate SQL against the live schema at compile time.
-# SQLX_OFFLINE=false means: use the live DB (most thorough checking).
-# ────────────────────────────────────────────────────────────────────────────
-# ────────────────────────────────────────────────────────────────────────────
-# Rust — fast checks (fmt + clippy), no DB needed, runs in parallel with build
-# ────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# Rust — fmt only, fast, parallel
+# ─────────────────────────────────────────────────────────────────────────────
   rust-check:
     name: Rust Lint
     runs-on: ubuntu-latest
@@ -287,60 +218,20 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy
-
-      - name: sccache
-        uses: mozilla-actions/sccache-action@v0.0.5
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: server-rust
-          shared-key: rust-${{ runner.os }}
-        env:
-          RUSTC_WRAPPER: sccache
-          SCCACHE_GHA_ENABLED: "true"
-          SQLX_OFFLINE: "true"
+          components: rustfmt
 
       - name: cargo fmt --check
         run: cargo fmt --all -- --check || (echo "::warning::Run 'cargo fmt' locally" && true)
 
-# ────────────────────────────────────────────────────────────────────────────
-# Rust — full build + test + docker (needs live DB for sqlx::query! macros)
-# ────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# Rust — clippy + build + test + docker
+# ─────────────────────────────────────────────────────────────────────────────
   rust-build:
     name: Rust Build & Docker
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: voicecall_ci
-          POSTGRES_USER: voicecall
-          POSTGRES_PASSWORD: cipassword
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     defaults:
       run:
         working-directory: server-rust
-
     env:
       DATABASE_URL: postgres://voicecall:cipassword@localhost:5432/voicecall_ci
       REDIS_URL: redis://localhost:6379
@@ -348,12 +239,34 @@ jobs:
       RUSTC_WRAPPER: sccache
       SCCACHE_GHA_ENABLED: "true"
       RUSTFLAGS: "-C link-arg=-fuse-ld=mold"
-
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: voicecall_ci
+          POSTGRES_USER: voicecall
+          POSTGRES_PASSWORD: cipassword
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
 
       - name: Install mold linker
         run: sudo apt-get install -y mold
@@ -369,41 +282,38 @@ jobs:
 
       - name: Bootstrap DB schema
         run: |
-          PGPASSWORD=cipassword psql \
-            -h localhost -U voicecall -d voicecall_ci \
-            -f - << 'SQL'
-          CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-          CREATE TABLE IF NOT EXISTS users (
-            id BIGSERIAL PRIMARY KEY, user_id UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
-            username VARCHAR(30) NOT NULL UNIQUE, email VARCHAR(255) NOT NULL UNIQUE,
-            display_name VARCHAR(50) NOT NULL, avatar_url TEXT, password_hash TEXT NOT NULL,
-            is_active BOOLEAN NOT NULL DEFAULT true, discoverable BOOLEAN NOT NULL DEFAULT true,
-            last_seen TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-          );
-          CREATE TABLE IF NOT EXISTS rooms (
-            id BIGSERIAL PRIMARY KEY, room_id UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
-            created_by UUID NOT NULL REFERENCES users(user_id),
-            is_active BOOLEAN NOT NULL DEFAULT true,
-            expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '24 hours',
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-          );
-          CREATE TABLE IF NOT EXISTS contacts (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            requester_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-            target_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-            status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','blocked')),
-            created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-            UNIQUE (requester_id, target_id)
-          );
-          CREATE TABLE IF NOT EXISTS invite_links (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            owner_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-            token TEXT NOT NULL UNIQUE, uses_left INTEGER NOT NULL DEFAULT 1,
-            expires_at TIMESTAMPTZ NOT NULL DEFAULT now() + INTERVAL '24 hours',
-            created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-          );
-          SQL
+          PGPASSWORD=cipassword psql -h localhost -U voicecall -d voicecall_ci -c "
+            CREATE EXTENSION IF NOT EXISTS pgcrypto;
+            CREATE TABLE IF NOT EXISTS users (
+              id BIGSERIAL PRIMARY KEY, user_id UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+              username VARCHAR(30) NOT NULL UNIQUE, email VARCHAR(255) NOT NULL UNIQUE,
+              display_name VARCHAR(50) NOT NULL, avatar_url TEXT, password_hash TEXT NOT NULL,
+              is_active BOOLEAN NOT NULL DEFAULT true, discoverable BOOLEAN NOT NULL DEFAULT true,
+              last_seen TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+              created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS rooms (
+              id BIGSERIAL PRIMARY KEY, room_id UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+              created_by UUID NOT NULL REFERENCES users(user_id), is_active BOOLEAN NOT NULL DEFAULT true,
+              expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '24 hours',
+              created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS contacts (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              requester_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+              target_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+              status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','blocked')),
+              created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+              UNIQUE (requester_id, target_id)
+            );
+            CREATE TABLE IF NOT EXISTS invite_links (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              owner_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+              token TEXT NOT NULL UNIQUE, uses_left INTEGER NOT NULL DEFAULT 1,
+              expires_at TIMESTAMPTZ NOT NULL DEFAULT now() + INTERVAL '24 hours',
+              created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            );
+          "
 
       - name: cargo clippy
         run: cargo clippy --all-targets -- -D warnings
@@ -446,12 +356,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
-          build-args: |
-            SQLX_OFFLINE=true
+          build-args: SQLX_OFFLINE=true
 
-# ────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
 # Node.js legacy server
-# ────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
   node:
     name: Node.js Server
     runs-on: ubuntu-latest
