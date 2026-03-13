@@ -34,3 +34,9 @@
 # General Android
 -keepattributes SourceFile, LineNumberTable
 -renamesourcefileattribute SourceFile
+
+# Play Core — Flutter references these for deferred components but the library
+# is not a direct dependency. R8 fails on missing classes at release build.
+# Since this app does not use deferred components, we simply suppress warnings.
+-dontwarn com.google.android.play.core.**
+-keep class com.google.android.play.core.** { *; }
