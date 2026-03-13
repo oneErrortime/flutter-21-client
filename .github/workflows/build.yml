@@ -105,18 +105,9 @@ jobs:
 
       - name: Build debug APK
         run: |
-          flutter build apk --debug --target-platform android-arm64 || true
-          echo "=== find APK everywhere ==="
-          find . -name "*.apk" 2>/dev/null || echo "No APKs anywhere"
-          echo "=== android/app/build/outputs tree ==="
-          find android/app/build/outputs -maxdepth 4 2>/dev/null || echo "android/app/build/outputs does not exist"
-          echo "=== build/app/outputs tree ==="
-          find build/app/outputs -maxdepth 4 2>/dev/null || echo "build/app/outputs does not exist"
-          echo "=== build symlink check ==="
-          ls -la build/ 2>/dev/null || echo "build/ does not exist"
-          echo "=== Gradle tasks that ran ==="
-          find android/app/build -name "*.txt" -path "*task*" 2>/dev/null | head -5
-          exit 1
+          mkdir -p build
+          ln -sfn ../android/app/build build/app
+          flutter build apk --debug --target-platform android-arm64
 
       - name: Build release APKs
         run: |
