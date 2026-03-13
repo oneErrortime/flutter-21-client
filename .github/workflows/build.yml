@@ -104,7 +104,17 @@ jobs:
         run: flutter test --coverage || true
 
       - name: Build debug APK
-        run: flutter build apk --debug --target-platform android-arm64
+        run: |
+          flutter build apk --debug --target-platform android-arm64 || true
+          echo "=== APK search ==="
+          find build -name "*.apk" 2>/dev/null || echo "No APKs found in build/"
+          find build -name "*.apk" 2>/dev/null | head -20
+          echo "=== flutter-apk dir ==="
+          ls -la build/app/outputs/flutter-apk/ 2>/dev/null || echo "flutter-apk/ does not exist"
+          echo "=== apk dir ==="
+          ls -la build/app/outputs/apk/debug/ 2>/dev/null || echo "apk/debug/ does not exist"
+          # fail if no APK found
+          test -f build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk ||           test -f build/app/outputs/flutter-apk/app-debug.apk ||           (echo "APK not found" && exit 1)
 
       - name: Build release APKs
         run: |
