@@ -106,15 +106,17 @@ jobs:
       - name: Build debug APK
         run: |
           flutter build apk --debug --target-platform android-arm64 || true
-          echo "=== APK search ==="
-          find build -name "*.apk" 2>/dev/null || echo "No APKs found in build/"
-          find build -name "*.apk" 2>/dev/null | head -20
-          echo "=== flutter-apk dir ==="
-          ls -la build/app/outputs/flutter-apk/ 2>/dev/null || echo "flutter-apk/ does not exist"
-          echo "=== apk dir ==="
-          ls -la build/app/outputs/apk/debug/ 2>/dev/null || echo "apk/debug/ does not exist"
-          # fail if no APK found
-          test -f build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk ||           test -f build/app/outputs/flutter-apk/app-debug.apk ||           (echo "APK not found" && exit 1)
+          echo "=== find APK everywhere ==="
+          find . -name "*.apk" 2>/dev/null || echo "No APKs anywhere"
+          echo "=== android/app/build/outputs tree ==="
+          find android/app/build/outputs -maxdepth 4 2>/dev/null || echo "android/app/build/outputs does not exist"
+          echo "=== build/app/outputs tree ==="
+          find build/app/outputs -maxdepth 4 2>/dev/null || echo "build/app/outputs does not exist"
+          echo "=== build symlink check ==="
+          ls -la build/ 2>/dev/null || echo "build/ does not exist"
+          echo "=== Gradle tasks that ran ==="
+          find android/app/build -name "*.txt" -path "*task*" 2>/dev/null | head -5
+          exit 1
 
       - name: Build release APKs
         run: |
